@@ -22,9 +22,9 @@ project "proxy"
 	links { "sodium" }
 	files {
 		"proxy.h",
-		"proxy.cpp",
-		"proxy_*.h",
-		"proxy_*.cpp"
+		"proxy.cpp"
+		--"proxy_*.h",
+		--"proxy_*.cpp"
 	}
 	filter "system:not windows"
 		links { "pthread" }
