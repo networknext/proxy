@@ -6,15 +6,9 @@ DONE
 
 	Setup bootstrap.sh
 
-TODO
-
-	---------
-
 	Setup so that the proxy by default looks up the number of cores in linux, and creates that many threads.
 
-	---------
-
-	Setup so the proxy is installed and runs as a service via bootstrap.sh
+TODO
 
 	---------
 
@@ -22,7 +16,7 @@ TODO
 
 	Inside the "proxy" google cloud project, setup a VM with latest type w. 32 cores and high perf IO (special nic...)
 
-	Install and run the proxy as a service on the proxy machine.
+	Run the proxy.
 
 	---------
 
