@@ -1,10 +1,11 @@
 DONE
 
+	Implement the proxy to act as a packet reflector (eg. send packet back to sender, initially...)
+
 TODO
 
 	---------
 
-	Implement the proxy to act as a packet reflector (eg. send packet back to sender, initially...)
 
 	Gotta do that thing on linux to fix the socket buffer sizes etc, eg. especially do a script
 

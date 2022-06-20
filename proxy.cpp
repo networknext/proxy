@@ -26,9 +26,6 @@
 #include <string.h>
 #include <signal.h>
 
-// todo: make this entirely configurable
-#define PROXY_THREAD_DATA_BYTES           (10*1024*1024)
-
 // ---------------------------------------------------------------------
 
 extern bool proxy_platform_init();
@@ -40,6 +37,7 @@ struct proxy_config_t
 	proxy_address_t bind_address;
 	int num_threads;
 	int max_packet_size;
+	int thread_data_bytes;
     int socket_send_buffer_size;
     int socket_receive_buffer_size;
 };
@@ -52,6 +50,10 @@ bool proxy_init()
 		return false;
 
 	config.num_threads = 2;
+
+	config.max_packet_size = 1500;
+
+	config.thread_data_bytes = 10 * 1024 * 1024;
 
 	memset( &config.bind_address, 0, sizeof(proxy_address_t) );
 	config.bind_address.type = PROXY_ADDRESS_IPV4;
@@ -466,6 +468,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	printf( "thread %d stopped\n", thread_data->thread_number );	
 
+	fflush( stdout );
+
     PROXY_PLATFORM_THREAD_RETURN();
 }
 
@@ -494,7 +498,7 @@ int main()
 
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
-		thread_data[i] = (proxy_thread_data_t*) malloc( PROXY_THREAD_DATA_BYTES );
+		thread_data[i] = (proxy_thread_data_t*) malloc( config.thread_data_bytes );
 		if ( !thread_data[i] )
 		{
 			printf( "error: could not allocate thread data\n" );
