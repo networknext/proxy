@@ -16,7 +16,15 @@ DONE
 
 	Actually compile on Linux.
 
+	Force create n threads.
+
 TODO
+
+	Make n = 1 for macos.
+
+	Actually create sockets for n threads.
+
+	Find a way to shut down cleanly.
 
 	----------
 
