@@ -322,15 +322,19 @@ proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * addres
     return socket;
 }
 
-void proxy_platform_socket_destroy( proxy_platform_socket_t * socket )
+void proxy_platform_socket_close( proxy_platform_socket_t * socket )
 {
     assert( socket );
-
     if ( socket->handle != 0 )
     {
         close( socket->handle );
     }
-    
+}
+
+void proxy_platform_socket_destroy( proxy_platform_socket_t * socket )
+{
+	assert( socket );
+	proxy_platform_socket_close( socket );
     free( socket );
 }
 

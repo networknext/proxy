@@ -160,6 +160,8 @@ extern proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t *
 
 extern void proxy_platform_socket_destroy( proxy_platform_socket_t * socket );
 
+extern void proxy_platform_socket_close( proxy_platform_socket_t * socket );
+
 extern void proxy_platform_socket_send_packet( proxy_platform_socket_t * socket, const proxy_address_t * to, const void * packet_data, int packet_bytes );
 
 extern int proxy_platform_socket_receive_packet( proxy_platform_socket_t * socket, proxy_address_t * from, void * packet_data, int max_packet_size );
@@ -422,6 +424,7 @@ bool proxy_address_equal( const proxy_address_t * a, const proxy_address_t * b )
 struct proxy_thread_data_t
 {
 	int thread_number;
+	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
 	// ...
 };
@@ -430,7 +433,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 {
 	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
 
-	printf( "thread %d\n", thread_data->thread_number );
+	printf( "thread %d started\n", thread_data->thread_number );
 
     thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
@@ -455,6 +458,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	}
 
 	proxy_platform_socket_destroy( thread_data->socket );
+
+	printf( "thread %d stopped\n", thread_data->thread_number );	
 
     PROXY_PLATFORM_THREAD_RETURN();
 }
@@ -482,34 +487,46 @@ int main()
 
 		thread_data[i]->thread_number = i;
 
-	    proxy_platform_thread_t * thread = proxy_platform_thread_create( proxy_thread_function, thread_data[i] );
-	    if ( !thread )
+	    thread_data[i]->thread = proxy_platform_thread_create( proxy_thread_function, thread_data[i] );
+	    if ( !thread_data[i]->thread )
 	    {
 	        printf( "error: failed to create thread\n" );
 	        exit(1);
 	    }
 	}
 
-	proxy_sleep( 10.0 );
+	// todo: loop until control-C
 
-    proxy_term();
+	proxy_sleep( 1.0 );
 
-    // todo: kill sockets
+	printf( "shutting down...\n" );
 
-    // todo: join threads
+	printf( "closing sockets\n" );
 
-    // todo: destroy threads
-
-    // todo: destroy thread data
-
-    /*
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
-		// todo: join thread
-
-		thread_data[i] = malloc( PROXY_THREAD_DATA_BYTES );
+		proxy_platform_socket_close( thread_data[i]->socket );
 	}
-	*/
+
+	printf( "joining threads\n" );
+
+	for ( int i = 0; i < config.num_threads; i++ )
+	{
+		proxy_platform_thread_join( thread_data[i]->thread );
+	}
+    
+	printf( "destroying threads\n" );
+
+	for ( int i = 0; i < config.num_threads; i++ )
+	{
+		proxy_platform_thread_destroy( thread_data[i]->thread );
+		free( thread_data[i] );
+		thread_data[i] = NULL;
+	}
+
+	printf( "done.\n" );	
+
+    proxy_term();
 
     fflush( stdout );
 

@@ -18,21 +18,13 @@ DONE
 
 	Force create n threads.
 
-TODO
-
-	Make n = 1 for macos.
-
 	Actually create sockets for n threads.
 
 	Find a way to shut down cleanly.
 
-	----------
+TODO
 
-	Bring across env helpers, implement PROXY_NUM_THREADS. Default is 0, which means (on linux), one thread per-core.
-
-	Grab relay code to work out how many cores there are from relay...
-
-	Setup multiple threads for the proxy, with SO_REUSEPORT.
+	Join threads etc. on shutdown.
 
 	----------
 
