@@ -31,8 +31,8 @@
 #include <unistd.h>
 #include <sched.h>
 
-#define NEXT_PLATFORM_SOCKET_NON_BLOCKING       0
-#define NEXT_PLATFORM_SOCKET_BLOCKING           1
+#define PROXY_PLATFORM_SOCKET_NON_BLOCKING       0
+#define PROXY_PLATFORM_SOCKET_BLOCKING           1
 
 // -------------------------------------
 
@@ -53,11 +53,11 @@ struct proxy_platform_thread_t
 
 typedef void * proxy_platform_thread_return_t;
 
-#define NEXT_PLATFORM_THREAD_RETURN() do { return NULL; } while ( 0 )
+#define PROXY_PLATFORM_THREAD_RETURN() do { return NULL; } while ( 0 )
 
-#define NEXT_PLATFORM_THREAD_FUNC
+#define PROXY_PLATFORM_THREAD_FUNC
 
-typedef proxy_platform_thread_return_t (NEXT_PLATFORM_THREAD_FUNC proxy_platform_thread_func_t)(void*);
+typedef proxy_platform_thread_return_t (PROXY_PLATFORM_THREAD_FUNC proxy_platform_thread_func_t)(void*);
 
 // -------------------------------------
 
