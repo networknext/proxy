@@ -22,12 +22,30 @@ DONE
 
 	Find a way to shut down cleanly.
 
+	Join threads etc. on shutdown.
+
 TODO
 
-	Join threads etc. on shutdown.
+	Implement main loop sleep 1 sec and shutdown clean on control-C
 
 	----------
 
-	Implement the proxy to act as a packet reflector (eg. send back to sender, initially...)
+	Implement env var overrides, especially bind address, num threads, thread data bytes
 
-	Implement a test client client.cpp, and implement CLIENT_NUM_THREADS
+	Implement the proxy to act as a packet reflector (eg. send packet back to sender, initially...)
+
+	Implement a test client so I can test throughput.
+
+	Implement basic throughput test in google cloud. How far can I push it?
+
+	Implement basic throughput test in bare metal.
+
+	Integrate network next server into thread data. Will involve adjusting the SDK so that I can take over packet send/receive on behalf of server, and insert received packets directly into the SDK, and hook a callback for send packets...
+
+	Setup client, proxy, server in google cloud and test throughput.
+
+	Test throughput in GCore bare metal ashburn.
+
+	Done.
+
+	----------
