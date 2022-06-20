@@ -61,8 +61,8 @@ bool proxy_init()
 	config.bind_address.type = PROXY_ADDRESS_IPV4;
 	config.bind_address.port = 40000;
 
-	config.socket_send_buffer_size = 1000000;
-	config.socket_receive_buffer_size = 1000000;
+	config.socket_send_buffer_size = 10000000;
+	config.socket_receive_buffer_size = 10000000;
 
 	// todo: env overrides
 

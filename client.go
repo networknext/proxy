@@ -70,10 +70,10 @@ func main() {
 				conn := lp.(*net.UDPConn)
 				threadConnection[thread] = conn
 
-				if err := conn.SetReadBuffer(1000000); err != nil {
+				if err := conn.SetReadBuffer(4000000); err != nil {
 					fmt.Printf("error: could not set connection read buffer size: %v\n", err)
 				}
-				if err := conn.SetWriteBuffer(1000000); err != nil {
+				if err := conn.SetWriteBuffer(4000000); err != nil {
 					fmt.Printf("error: could not set connection write buffer size: %v\n", err)
 				}
 
