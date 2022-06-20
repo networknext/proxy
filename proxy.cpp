@@ -478,6 +478,8 @@ int main()
 {
 	signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
+	printf( "network next proxy\n" );
+
     if ( !proxy_init() )
     {
         printf( "error: failed to initialize proxy\n" );
