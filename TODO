@@ -1,34 +1,18 @@
 DONE
 
-	Sketch out proxy.cpp
-
-	Sketch out proxy.h
-
-	Copy across proxy_linux.h/cpp
-
-	Copy across proxy_macos.h/cpp
-
-	Get proxy_mac actually compiling with proxy_/PROXY_ conversion.
-
-	Get proxy_init / proxy_term working.
-
-	Convert proxy_linux* -> PROXY_/proxy_
-
-	Actually compile on Linux.
-
-	Force create n threads.
-
-	Actually create sockets for n threads.
-
-	Find a way to shut down cleanly.
-
-	Join threads etc. on shutdown.
-
-	Implement main loop sleep 1 sec and shutdown clean on control-C
-
 TODO
 
-	Implement env var overrides, especially bind address, num threads, thread data bytes
+	Implement env var overrides
+
+		bind address, 
+
+		socket buffer sizes, 
+
+		num threads, 
+
+		thread data bytes
+
+	Print out config on start.
 
 	--------
 
