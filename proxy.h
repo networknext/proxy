@@ -43,6 +43,8 @@
 
 #define PROXY_MAX_ADDRESS_STRING_LENGTH                          256
 
+#define PROXY_ADDRESS_BUFFER_SAFETY								  16
+
 #define PROXY_PLATFORM_UNKNOWN                                     0
 #define PROXY_PLATFORM_MAC                                         1
 #define PROXY_PLATFORM_LINUX                                       2
@@ -56,9 +58,13 @@
 
 // ----------------------------------------------
 
-int proxy_init();
+bool proxy_init();
 
 void proxy_term();
+
+double proxy_time();
+
+void proxy_sleep( double seconds );
 
 void proxy_printf( int level, const char * format, ... );
 
@@ -71,7 +77,7 @@ struct proxy_address_t
     uint8_t type;
 };
 
-int proxy_address_parse( struct proxy_address_t * address, const char * address_string );
+bool proxy_address_parse( struct proxy_address_t * address, const char * address_string );
 
 const char * proxy_address_to_string( const struct proxy_address_t * address, char * buffer );
 

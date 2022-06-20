@@ -20,48 +20,48 @@
     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "next.h"
+#include "proxy.h"
 
-#ifndef NEXT_MAC_H
-#define NEXT_MAC_H
+#ifndef PROXY_MAC_H
+#define PROXY_MAC_H
 
-#if NEXT_PLATFORM == NEXT_PLATFORM_MAC
+#if PROXY_PLATFORM == PROXY_PLATFORM_MAC
 
 #include <pthread.h>
 #include <unistd.h>
 
-#define NEXT_PLATFORM_SOCKET_NON_BLOCKING       0
-#define NEXT_PLATFORM_SOCKET_BLOCKING           1
+#define PROXY_PLATFORM_SOCKET_NON_BLOCKING       0
+#define PROXY_PLATFORM_SOCKET_BLOCKING           1
 
 // -------------------------------------
 
-typedef int next_platform_socket_handle_t;
+typedef int proxy_platform_socket_handle_t;
 
-struct next_platform_socket_t
+struct proxy_platform_socket_t
 {
     void * context;
-    next_platform_socket_handle_t handle;
+    proxy_platform_socket_handle_t handle;
 };
 
 // -------------------------------------
 
-struct next_platform_thread_t
+struct proxy_platform_thread_t
 {
     void * context;
     pthread_t handle;
 };
 
-typedef void * next_platform_thread_return_t;
+typedef void * proxy_platform_thread_return_t;
 
-#define NEXT_PLATFORM_THREAD_RETURN() do { return NULL; } while ( 0 )
+#define PROXY_PLATFORM_THREAD_RETURN() do { return NULL; } while ( 0 )
 
-#define NEXT_PLATFORM_THREAD_FUNC
+#define PROXY_PLATFORM_THREAD_FUNC
 
-typedef next_platform_thread_return_t (NEXT_PLATFORM_THREAD_FUNC next_platform_thread_func_t)(void*);
+typedef proxy_platform_thread_return_t (PROXY_PLATFORM_THREAD_FUNC proxy_platform_thread_func_t)(void*);
 
 // -------------------------------------
 
-struct next_platform_mutex_t
+struct proxy_platform_mutex_t
 {
     bool ok;
     pthread_mutex_t handle;
@@ -69,6 +69,6 @@ struct next_platform_mutex_t
 
 // -------------------------------------
 
-#endif // #if NEXT_PLATFORM == NEXT_PLATFORM_MAC
+#endif // #if PROXY_PLATFORM == PROXY_PLATFORM_MAC
 
-#endif // #ifndef NEXT_MAC_H
+#endif // #ifndef PROXY_MAC_H

@@ -1,12 +1,20 @@
 DONE
 
-TODO
-
 	Sketch out proxy.cpp
+
+	Sketch out proxy.h
 
 	Copy across proxy_linux.h/cpp
 
 	Copy across proxy_macos.h/cpp
+
+TODO
+
+	Get proxy_mac actually compiling with proxy_/PROXY_ conversion.
+
+	Get proxy_init / proxy_term working.
+
+	----------
 
 	Bring across env helpers, implement PROXY_NUM_THREADS. Default is 0, which means (on linux), one thread per-core.
 

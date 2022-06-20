@@ -1,5 +1,5 @@
 /*
-    Network Next SDK. Copyright © 2017 - 2022 Network Next, Inc.
+    Network Next Proxy. Copyright © 2017 - 2022 Network Next, Inc.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
     conditions are met:
@@ -20,12 +20,15 @@
     NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "next.h"
+#include "proxy.h"
 
-#ifndef NEXT_LINUX_H
-#define NEXT_LINUX_H
+#ifndef PROXY_LINUX_H
+#define PROXY_LINUX_H
 
-#if NEXT_PLATFORM == NEXT_PLATFORM_LINUX
+#if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
+
+// todo
+#if 0
 
 #include <pthread.h>
 #include <unistd.h>
@@ -71,6 +74,8 @@ struct next_platform_mutex_t
 
 // -------------------------------------
 
-#endif // #if NEXT_PLATFORM == NEXT_PLATFORM_LINUX
+#endif
 
-#endif // #ifndef NEXT_LINUX_H
+#endif // #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
+
+#endif // #ifndef PROXY_LINUX_H
