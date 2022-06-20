@@ -14,9 +14,9 @@ DONE
 
 	Convert proxy_linux* -> PROXY_/proxy_
 
-TODO
-
 	Actually compile on Linux.
+
+TODO
 
 	----------
 
@@ -25,6 +25,8 @@ TODO
 	Grab relay code to work out how many cores there are from relay...
 
 	Setup multiple threads for the proxy, with SO_REUSEPORT.
+
+	----------
 
 	Implement the proxy to act as a packet reflector (eg. send back to sender, initially...)
 
