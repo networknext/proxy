@@ -32,6 +32,8 @@ extern bool proxy_platform_init();
 
 extern void proxy_platform_term();
 
+extern int proxy_platform_num_cores();
+
 struct proxy_config_t
 {
 	proxy_address_t bind_address;
@@ -49,7 +51,7 @@ bool proxy_init()
 	if ( !proxy_platform_init() )
 		return false;
 
-	config.num_threads = 2;
+	config.num_threads = 0;
 
 	config.max_packet_size = 1500;
 
@@ -63,6 +65,11 @@ bool proxy_init()
 	config.socket_receive_buffer_size = 1000000;
 
 	// todo: env overrides
+
+	if ( config.num_threads <= 0 )
+	{
+		config.num_threads = proxy_platform_num_cores();
+	}
 
     return true;
 }

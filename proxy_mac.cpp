@@ -529,6 +529,13 @@ void proxy_platform_mutex_destroy( proxy_platform_mutex_t * mutex )
 
 // ---------------------------------------------------
 
+int proxy_platform_num_cores()
+{
+	return 2;
+}
+
+// ---------------------------------------------------
+
 #else // #if PROXY_PLATFORM == PROXY_PLATFORM_MAC
 
 int proxy_mac_dummy_symbol = 0;

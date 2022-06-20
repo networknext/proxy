@@ -588,6 +588,15 @@ void proxy_platform_mutex_destroy( proxy_platform_mutex_t * mutex )
 
 // ---------------------------------------------------
 
+#include <sys/sysinfo.h>
+
+int proxy_platform_num_cores()
+{
+	return get_nprocs();
+}
+
+// ---------------------------------------------------
+
 #else // #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 
 int proxy_linux_dummy_symbol = 0;
