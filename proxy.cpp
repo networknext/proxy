@@ -26,7 +26,7 @@
 #include <string.h>
 #include <signal.h>
 
-#define PROXY_MAX_PACKET_SIZE 						1500
+// todo: make this entirely configurable
 #define PROXY_THREAD_DATA_BYTES           (10*1024*1024)
 
 // ---------------------------------------------------------------------
@@ -39,6 +39,7 @@ struct proxy_config_t
 {
 	proxy_address_t bind_address;
 	int num_threads;
+	int max_packet_size;
     int socket_send_buffer_size;
     int socket_receive_buffer_size;
 };
@@ -438,24 +439,27 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
     thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
-    // todo
-	assert( thread_data->socket );
+    if ( !thread_data->socket )
+    {
+    	printf( "error: could not create socket\n" );
+    	exit(1);
+    }
 
 	while ( true )
 	{
-		uint8_t buffer[PROXY_MAX_PACKET_SIZE];
+		uint8_t buffer[config.max_packet_size];
 
 		proxy_address_t from;
 
-		int result = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer, PROXY_MAX_PACKET_SIZE );
+		int packet_bytes = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer, config.max_packet_size );
 
-		if ( result < 0 )
+		if ( packet_bytes < 0 )
 			break;
 
-		if ( result == 0 )
+		if ( packet_bytes == 0 )
 			continue;
 
-		// todo
+		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
 	}
 
 	proxy_platform_socket_destroy( thread_data->socket );
