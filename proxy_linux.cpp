@@ -132,7 +132,7 @@ bool proxy_platform_hostname_resolve( const char * hostname, const char * port, 
             }
             else
             {
-                proxy_assert( 0 );
+                assert( 0 );
                 freeaddrinfo( result );
                 return false;
             }
