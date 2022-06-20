@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <signal.h>
 
 #define PROXY_MAX_PACKET_SIZE 						1500
 #define PROXY_THREAD_DATA_BYTES           (10*1024*1024)
@@ -466,8 +467,17 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 // ---------------------------------------------------------------------
 
+static volatile int quit = 0;
+
+void interrupt_handler( int signal )
+{
+    (void) signal; quit = 1;
+}
+
 int main()
 {
+	signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
+
     if ( !proxy_init() )
     {
         printf( "error: failed to initialize proxy\n" );
@@ -495,11 +505,12 @@ int main()
 	    }
 	}
 
-	// todo: loop until control-C
+	while ( !quit )
+	{
+		proxy_sleep( 1.0 );
+	}
 
-	proxy_sleep( 1.0 );
-
-	printf( "shutting down...\n" );
+	printf( "\nshutting down...\n" );
 
 	printf( "closing sockets\n" );
 
