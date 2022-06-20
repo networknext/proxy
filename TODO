@@ -24,13 +24,13 @@ DONE
 
 	Join threads etc. on shutdown.
 
-TODO
-
 	Implement main loop sleep 1 sec and shutdown clean on control-C
 
-	----------
+TODO
 
 	Implement env var overrides, especially bind address, num threads, thread data bytes
+
+	--------
 
 	Implement the proxy to act as a packet reflector (eg. send packet back to sender, initially...)
 
