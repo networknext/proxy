@@ -27,9 +27,6 @@
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 
-// todo
-#if 0
-
 #include <pthread.h>
 #include <unistd.h>
 #include <sched.h>
@@ -39,42 +36,38 @@
 
 // -------------------------------------
 
-typedef int next_platform_socket_handle_t;
+typedef int proxy_platform_socket_handle_t;
 
-struct next_platform_socket_t
+struct proxy_platform_socket_t
 {
-    void * context;
     int type;
-    next_platform_socket_handle_t handle;
+    proxy_platform_socket_handle_t handle;
 };
 
 // -------------------------------------
 
-struct next_platform_thread_t
+struct proxy_platform_thread_t
 {
-    void * context;
     pthread_t handle;
 };
 
-typedef void * next_platform_thread_return_t;
+typedef void * proxy_platform_thread_return_t;
 
 #define NEXT_PLATFORM_THREAD_RETURN() do { return NULL; } while ( 0 )
 
 #define NEXT_PLATFORM_THREAD_FUNC
 
-typedef next_platform_thread_return_t (NEXT_PLATFORM_THREAD_FUNC next_platform_thread_func_t)(void*);
+typedef proxy_platform_thread_return_t (NEXT_PLATFORM_THREAD_FUNC proxy_platform_thread_func_t)(void*);
 
 // -------------------------------------
 
-struct next_platform_mutex_t
+struct proxy_platform_mutex_t
 {
     bool ok;
     pthread_mutex_t handle;
 };
 
 // -------------------------------------
-
-#endif
 
 #endif // #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 

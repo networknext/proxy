@@ -120,7 +120,7 @@ extern bool proxy_platform_inet_pton6( const char * address_string, uint16_t * a
 
 extern bool proxy_platform_inet_ntop6( const uint16_t * address, char * address_string, size_t address_string_size );
 
-extern proxy_platform_socket_t * proxy_platform_socket_create( void * context, proxy_address_t * address, int socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size, bool enable_packet_tagging );
+extern proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * address, int socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size, bool enable_packet_tagging );
 
 extern void proxy_platform_socket_destroy( proxy_platform_socket_t * socket );
 
@@ -134,7 +134,7 @@ extern int proxy_platform_connection_type();
 
 extern int proxy_platform_hostname_resolve( const char * hostname, const char * port, proxy_address_t * address );
 
-extern proxy_platform_thread_t * proxy_platform_thread_create( void * context, proxy_platform_thread_func_t * func, void * arg );
+extern proxy_platform_thread_t * proxy_platform_thread_create( proxy_platform_thread_func_t * func, void * arg );
 
 extern void proxy_platform_thread_join( proxy_platform_thread_t * thread );
 
@@ -142,7 +142,7 @@ extern void proxy_platform_thread_destroy( proxy_platform_thread_t * thread );
 
 extern bool proxy_platform_thread_high_priority( proxy_platform_thread_t * thread );
 
-extern int proxy_platform_mutex_create( proxy_platform_mutex_t * mutex );
+extern bool proxy_platform_mutex_create( proxy_platform_mutex_t * mutex );
 
 extern void proxy_platform_mutex_acquire( proxy_platform_mutex_t * mutex );
 

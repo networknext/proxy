@@ -1,5 +1,5 @@
 /*
-    Network Next SDK. Copyright © 2017 - 2022 Network Next, Inc.
+    Network Next Proxy. Copyright © 2017 - 2022 Network Next, Inc.
 
     Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following 
     conditions are met:
@@ -39,7 +39,6 @@ typedef int proxy_platform_socket_handle_t;
 
 struct proxy_platform_socket_t
 {
-    void * context;
     proxy_platform_socket_handle_t handle;
 };
 
@@ -47,7 +46,6 @@ struct proxy_platform_socket_t
 
 struct proxy_platform_thread_t
 {
-    void * context;
     pthread_t handle;
 };
 

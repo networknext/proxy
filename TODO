@@ -8,11 +8,15 @@ DONE
 
 	Copy across proxy_macos.h/cpp
 
-TODO
-
 	Get proxy_mac actually compiling with proxy_/PROXY_ conversion.
 
 	Get proxy_init / proxy_term working.
+
+TODO
+
+	Convert proxy_linux* -> PROXY_/proxy_
+
+	Actually compile on Linux.
 
 	----------
 

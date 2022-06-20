@@ -92,7 +92,7 @@ bool proxy_platform_inet_pton6( const char * address_string, uint16_t * address_
 
 bool proxy_platform_inet_ntop6( const uint16_t * address, char * address_string, size_t address_string_size )
 {
-    return inet_ntop( AF_INET6, (void*)address, address_string, socklen_t( address_string_size ) ) == NULL;
+    return inet_ntop( AF_INET6, (void*)address, address_string, socklen_t( address_string_size ) ) != NULL;
 }
 
 bool proxy_platform_hostname_resolve( const char * hostname, const char * port, proxy_address_t * address )
@@ -157,7 +157,7 @@ void proxy_platform_sleep( double time )
 
 void proxy_platform_socket_destroy( proxy_platform_socket_t * socket );
 
-proxy_platform_socket_t * proxy_platform_socket_create( void * context, proxy_address_t * address, int socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size )
+proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * address, int socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size )
 {
     assert( address );
     assert( address->type != PROXY_ADDRESS_NONE );
@@ -165,8 +165,6 @@ proxy_platform_socket_t * proxy_platform_socket_create( void * context, proxy_ad
     proxy_platform_socket_t * socket = (proxy_platform_socket_t*) malloc( sizeof( proxy_platform_socket_t ) );
 
     assert( socket );
-
-    socket->context = context;
 
     // create socket
 
