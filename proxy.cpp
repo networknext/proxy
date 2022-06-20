@@ -408,16 +408,14 @@ bool proxy_address_equal( const proxy_address_t * a, const proxy_address_t * b )
 
 int main()
 {
-	/*
     if ( !proxy_init() )
     {
         printf( "error: failed to initialize proxy\n" );
     }
-    */
-
+ 
     printf( "hello proxy world\n" );
 
-    // proxy_term();
+    proxy_term();
 
     fflush( stdout );
 
