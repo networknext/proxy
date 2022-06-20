@@ -406,14 +406,35 @@ bool proxy_address_equal( const proxy_address_t * a, const proxy_address_t * b )
 
 // ---------------------------------------------------------------------
 
+static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * nothing )
+{
+	(void) nothing;
+
+	// todo
+
+	printf( "thread\n" );
+
+    PROXY_PLATFORM_THREAD_RETURN();
+}
+
+// ---------------------------------------------------------------------
+
 int main()
 {
     if ( !proxy_init() )
     {
         printf( "error: failed to initialize proxy\n" );
     }
- 
-    printf( "hello proxy world\n" );
+
+	const int num_threads = 8;
+
+	for ( int i = 0; i < num_threads; i++ )
+	{
+	    proxy_platform_thread_t * thread = proxy_platform_thread_create( proxy_thread_function, NULL );
+    	assert( thread );
+	}
+
+	proxy_sleep( 10.0 );
 
     proxy_term();
 
