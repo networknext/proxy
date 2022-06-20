@@ -13,7 +13,7 @@ import (
 )
 
 const PacketBytes = 1000
-const NumThreads = 1000
+const NumThreads = 10000
 const BaseClientPort = 5000
 
 func ParseAddress(input string) *net.UDPAddr {
