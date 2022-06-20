@@ -200,6 +200,22 @@ proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * addres
         }
     }
 
+    // set reuse address and port options
+
+	const int enable = 1;
+
+    if ( setsockopt( socket->handle, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int) ) != 0 )
+    {
+        proxy_printf( PROXY_LOG_LEVEL_ERROR, "failed to set socket reuse address" );
+        return NULL;
+    }
+
+    if ( setsockopt( socket->handle, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int) ) != 0 )
+    {
+        proxy_printf( PROXY_LOG_LEVEL_ERROR, "failed to set socket reuse port" );
+        return NULL;
+    }
+
     // increase socket send and receive buffer sizes
 
     if ( setsockopt( socket->handle, SOL_SOCKET, SO_SNDBUF, (char*)( &send_buffer_size ), sizeof( int ) ) != 0 )
