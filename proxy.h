@@ -23,6 +23,85 @@
 #ifndef PROXY_H
 #define PROXY_H
 
-// ...
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+
+#include <stdint.h>
+#include <stddef.h>
+#include <assert.h>
+
+#define PROXY_LOG_LEVEL_NONE                                       0
+#define PROXY_LOG_LEVEL_ERROR                                      1
+#define PROXY_LOG_LEVEL_INFO                                       2
+#define PROXY_LOG_LEVEL_WARN                                       3
+#define PROXY_LOG_LEVEL_DEBUG                                      4
+
+#define PROXY_ADDRESS_NONE                                         0
+#define PROXY_ADDRESS_IPV4                                         1
+#define PROXY_ADDRESS_IPV6                                         2
+
+#define PROXY_MAX_ADDRESS_STRING_LENGTH                          256
+
+#define PROXY_PLATFORM_UNKNOWN                                     0
+#define PROXY_PLATFORM_MAC                                         1
+#define PROXY_PLATFORM_LINUX                                       2
+#define PROXY_PLATFORM_MAX                                         2
+
+#if defined(__APPLE__)
+    #define PROXY_PLATFORM PROXY_PLATFORM_MAC
+#else
+    #define PROXY_PLATFORM PROXY_PLATFORM_LINUX
+#endif
+
+// ----------------------------------------------
+
+int proxy_init();
+
+void proxy_term();
+
+void proxy_printf( int level, const char * format, ... );
+
+// ----------------------------------------------
+
+struct proxy_address_t
+{
+    union { uint8_t ipv4[4]; uint16_t ipv6[8]; } data;
+    uint16_t port;
+    uint8_t type;
+};
+
+int proxy_address_parse( struct proxy_address_t * address, const char * address_string );
+
+const char * proxy_address_to_string( const struct proxy_address_t * address, char * buffer );
+
+bool proxy_address_equal( const struct proxy_address_t * a, const struct proxy_address_t * b );
+
+void proxy_address_anonymize( struct proxy_address_t * address );
+
+// ----------------------------------------------
+
+#define PROXY_MUTEX_BYTES 256
+
+struct proxy_mutex_t { uint8_t dummy[PROXY_MUTEX_BYTES]; };
+
+int proxy_mutex_create( struct proxy_mutex_t * mutex );
+
+void proxy_mutex_destroy( struct proxy_mutex_t * mutex );
+
+void proxy_mutex_acquire( struct proxy_mutex_t * mutex );
+
+void proxy_mutex_release( struct proxy_mutex_t * mutex );
+
+struct proxy_mutex_helper_t
+{
+    struct proxy_mutex_t * _mutex;
+    proxy_mutex_helper_t( struct proxy_mutex_t * mutex ) : _mutex( mutex ) { assert( mutex ); proxy_mutex_acquire( _mutex ); }
+    ~proxy_mutex_helper_t() { assert( _mutex ); proxy_mutex_release( _mutex ); _mutex = NULL; }
+};
+
+#define proxy_mutex_guard( _mutex ) proxy_mutex_helper_t __mutex_helper( _mutex )
+
+// ----------------------------------------------
 
 #endif // #ifndef PROXY_H
