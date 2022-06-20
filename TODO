@@ -12,9 +12,9 @@ DONE
 
 	Get proxy_init / proxy_term working.
 
-TODO
-
 	Convert proxy_linux* -> PROXY_/proxy_
+
+TODO
 
 	Actually compile on Linux.
 
