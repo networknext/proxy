@@ -25,8 +25,45 @@
 #include <stdarg.h>
 #include <string.h>
 
-#define PROXY_DEFAULT_SOCKET_SEND_BUFFER_SIZE                      1000000
-#define PROXY_DEFAULT_SOCKET_RECEIVE_BUFFER_SIZE                   1000000
+// ---------------------------------------------------------------------
+
+extern bool proxy_platform_init();
+
+extern void proxy_platform_term();
+
+struct proxy_config_t
+{
+	proxy_address_t bind_address;
+	int num_threads;
+    int socket_send_buffer_size;
+    int socket_receive_buffer_size;
+};
+
+static proxy_config_t config;
+
+bool proxy_init()
+{
+	if ( !proxy_platform_init() )
+		return false;
+
+	config.num_threads = 2;
+
+	memset( &config.bind_address, 0, sizeof(proxy_address_t) );
+	config.bind_address.type = PROXY_ADDRESS_IPV4;
+	config.bind_address.port = 40000;
+
+	config.socket_send_buffer_size = 1000000;
+	config.socket_receive_buffer_size = 1000000;
+
+	// todo: env overrides
+
+    return true;
+}
+
+void proxy_term()
+{
+	proxy_platform_term();
+}
 
 // ---------------------------------------------------------------------
 
@@ -104,10 +141,6 @@ uint16_t proxy_htons( uint16_t in )
 
 // ---------------------------------------------------------------------
 
-extern bool proxy_platform_init();
-
-extern void proxy_platform_term();
-
 extern const char * proxy_platform_getenv( const char * );
 
 extern double proxy_platform_time();
@@ -120,7 +153,7 @@ extern bool proxy_platform_inet_pton6( const char * address_string, uint16_t * a
 
 extern bool proxy_platform_inet_ntop6( const uint16_t * address, char * address_string, size_t address_string_size );
 
-extern proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * address, int socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size, bool enable_packet_tagging );
+extern proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * address, int socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size );
 
 extern void proxy_platform_socket_destroy( proxy_platform_socket_t * socket );
 
@@ -182,29 +215,6 @@ double proxy_time()
 void proxy_sleep( double time_seconds )
 {
     proxy_platform_sleep( time_seconds );
-}
-
-// ---------------------------------------------------------------------
-
-struct proxy_config_t
-{
-    int socket_send_buffer_size;
-    int socket_receive_buffer_size;
-};
-
-bool proxy_init()
-{
-	if ( !proxy_platform_init() )
-		return false;
-
-	// todo: get envs
-
-    return true;
-}
-
-void proxy_term()
-{
-	proxy_platform_term();
 }
 
 // ---------------------------------------------------------------------
@@ -406,13 +416,17 @@ bool proxy_address_equal( const proxy_address_t * a, const proxy_address_t * b )
 
 // ---------------------------------------------------------------------
 
-static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * nothing )
+static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
 {
-	(void) nothing;
+	const int thread_number = (int) ((uint64_t)data);
 
-	// todo
+    proxy_platform_socket_t * socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
-	printf( "thread\n" );
+	assert( socket );
+
+	printf( "thread %d\n", thread_number );
+
+	proxy_platform_socket_destroy( socket );
 
     PROXY_PLATFORM_THREAD_RETURN();
 }
@@ -426,11 +440,9 @@ int main()
         printf( "error: failed to initialize proxy\n" );
     }
 
-	const int num_threads = 8;
-
-	for ( int i = 0; i < num_threads; i++ )
+	for ( int i = 0; i < config.num_threads; i++ )
 	{
-	    proxy_platform_thread_t * thread = proxy_platform_thread_create( proxy_thread_function, NULL );
+	    proxy_platform_thread_t * thread = proxy_platform_thread_create( proxy_thread_function, (void*) uint64_t(i) );
     	assert( thread );
 	}
 
