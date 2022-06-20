@@ -449,7 +449,7 @@ int proxy_platform_socket_receive_packet( proxy_platform_socket_t * socket, prox
 
         proxy_printf( PROXY_LOG_LEVEL_DEBUG, "recvfrom failed with error %d", errno );
         
-        return 0;
+        return -1;
     }
 
     if ( sockaddr_from.ss_family == AF_INET6 )
@@ -475,7 +475,7 @@ int proxy_platform_socket_receive_packet( proxy_platform_socket_t * socket, prox
     else
     {
         assert( 0 );
-        return 0;
+        return -1;
     }
   
     assert( result >= 0 );

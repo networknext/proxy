@@ -25,6 +25,9 @@
 #include <stdarg.h>
 #include <string.h>
 
+#define PROXY_MAX_PACKET_SIZE 						1500
+#define PROXY_THREAD_DATA_BYTES           (10*1024*1024)
+
 // ---------------------------------------------------------------------
 
 extern bool proxy_platform_init();
@@ -416,17 +419,42 @@ bool proxy_address_equal( const proxy_address_t * a, const proxy_address_t * b )
 
 // ---------------------------------------------------------------------
 
+struct proxy_thread_data_t
+{
+	int thread_number;
+	proxy_platform_socket_t * socket;
+	// ...
+};
+
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
 {
-	const int thread_number = (int) ((uint64_t)data);
+	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
 
-    proxy_platform_socket_t * socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+	printf( "thread %d\n", thread_data->thread_number );
 
-	assert( socket );
+    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
-	printf( "thread %d\n", thread_number );
+    // todo
+	assert( thread_data->socket );
 
-	proxy_platform_socket_destroy( socket );
+	while ( true )
+	{
+		uint8_t buffer[PROXY_MAX_PACKET_SIZE];
+
+		proxy_address_t from;
+
+		int result = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer, PROXY_MAX_PACKET_SIZE );
+
+		if ( result < 0 )
+			break;
+
+		if ( result == 0 )
+			continue;
+
+		// todo
+	}
+
+	proxy_platform_socket_destroy( thread_data->socket );
 
     PROXY_PLATFORM_THREAD_RETURN();
 }
@@ -438,17 +466,50 @@ int main()
     if ( !proxy_init() )
     {
         printf( "error: failed to initialize proxy\n" );
+        exit(1);
     }
+
+    proxy_thread_data_t * thread_data[config.num_threads];
 
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
-	    proxy_platform_thread_t * thread = proxy_platform_thread_create( proxy_thread_function, (void*) uint64_t(i) );
-    	assert( thread );
+		thread_data[i] = (proxy_thread_data_t*) malloc( PROXY_THREAD_DATA_BYTES );
+		if ( !thread_data[i] )
+		{
+			printf( "error: could not allocate thread data\n" );
+			exit(1);
+		}
+
+		thread_data[i]->thread_number = i;
+
+	    proxy_platform_thread_t * thread = proxy_platform_thread_create( proxy_thread_function, thread_data[i] );
+	    if ( !thread )
+	    {
+	        printf( "error: failed to create thread\n" );
+	        exit(1);
+	    }
 	}
 
 	proxy_sleep( 10.0 );
 
     proxy_term();
+
+    // todo: kill sockets
+
+    // todo: join threads
+
+    // todo: destroy threads
+
+    // todo: destroy thread data
+
+    /*
+	for ( int i = 0; i < config.num_threads; i++ )
+	{
+		// todo: join thread
+
+		thread_data[i] = malloc( PROXY_THREAD_DATA_BYTES );
+	}
+	*/
 
     fflush( stdout );
 
