@@ -1,0 +1,19 @@
+DONE
+
+TODO
+
+	Sketch out proxy.cpp
+
+	Copy across proxy_linux.h/cpp
+
+	Copy across proxy_macos.h/cpp
+
+	Bring across env helpers, implement PROXY_NUM_THREADS. Default is 0, which means (on linux), one thread per-core.
+
+	Grab relay code to work out how many cores there are from relay...
+
+	Setup multiple threads for the proxy, with SO_REUSEPORT.
+
+	Implement the proxy to act as a packet reflector (eg. send back to sender, initially...)
+
+	Implement a test client client.cpp, and implement CLIENT_NUM_THREADS
