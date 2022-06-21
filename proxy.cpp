@@ -61,8 +61,13 @@ bool proxy_init()
 	config.bind_address.type = PROXY_ADDRESS_IPV4;
 	config.bind_address.port = 40000;
 
+#if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.socket_send_buffer_size = 10000000;
 	config.socket_receive_buffer_size = 10000000;
+#else 
+	config.socket_send_buffer_size = 1000000;
+	config.socket_receive_buffer_size = 1000000;
+#endif
 
 	// todo: env overrides
 
@@ -521,6 +526,12 @@ int main()
 	    {
 	        printf( "error: failed to create thread\n" );
 	        exit(1);
+	    }
+
+	    if ( !proxy_platform_thread_affinity( thread_data[i]->thread, i ) )
+	    {
+	    	printf( "error: failed to set thread affinity to core %d\n", i );
+	    	exit(1);
 	    }
 	}
 
