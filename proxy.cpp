@@ -191,6 +191,8 @@ extern void proxy_platform_thread_destroy( proxy_platform_thread_t * thread );
 
 extern bool proxy_platform_thread_high_priority( proxy_platform_thread_t * thread );
 
+extern bool proxy_platform_thread_affinity( proxy_platform_thread_t * thread, int core );
+
 extern bool proxy_platform_mutex_create( proxy_platform_mutex_t * mutex );
 
 extern void proxy_platform_mutex_acquire( proxy_platform_mutex_t * mutex );

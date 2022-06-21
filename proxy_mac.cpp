@@ -479,6 +479,14 @@ bool proxy_platform_thread_high_priority( proxy_platform_thread_t * thread )
     return pthread_setschedparam( thread->handle, SCHED_FIFO, &param ) == 0;
 }
 
+bool proxy_platform_thread_affinity( proxy_platform_thread_t * thread, int core )
+{
+	// not supported
+	(void) thread;
+	(void) core;
+	return true;
+}
+
 // ---------------------------------------------------
 
 bool proxy_platform_mutex_create( proxy_platform_mutex_t * mutex )

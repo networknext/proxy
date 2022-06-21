@@ -540,6 +540,14 @@ bool proxy_platform_thread_high_priority( proxy_platform_thread_t * thread )
     return pthread_setschedparam( thread->handle, SCHED_FIFO, &param ) == 0;
 }
 
+bool proxy_platform_thread_affinity( proxy_platform_thread_t * thread, int core )
+{
+	cpu_set_t cpuset;
+	CPU_ZERO( &cpuset );
+	CPU_SET( core, &cpuset );
+	return pthread_setaffinity_np( thread->handle, sizeof(cpu_set_t), &cpuset ) == 0;
+}
+
 // ---------------------------------------------------
 
 bool proxy_platform_mutex_create( proxy_platform_mutex_t * mutex )
