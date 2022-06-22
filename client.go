@@ -15,7 +15,7 @@ import (
 )
 
 const PacketBytes = 256
-const NumThreads = 100//0
+const NumThreads = 1000
 const BaseClientPort = 5000
 
 func ParseAddress(input string) *net.UDPAddr {
@@ -71,14 +71,12 @@ func main() {
 				conn := lp.(*net.UDPConn)
 				threadConnection[thread] = conn
 
-/*
 				if err := conn.SetReadBuffer(10000000); err != nil {
 					fmt.Printf("error: could not set connection read buffer size: %v\n", err)
 				}
 				if err := conn.SetWriteBuffer(10000000); err != nil {
 					fmt.Printf("error: could not set connection write buffer size: %v\n", err)
 				}
-				*/
 
 				// track packet loss
 

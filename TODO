@@ -10,9 +10,15 @@ DONE
 
 	Upgrade client to use atomics.
 
+	Extend packets sent to proxy to include a uint64 sequence number in the first 8 bytes.
+
+	Track packet loss via packet buffer, and print it out.
+
 TODO
 
-	Extend packets sent to proxy to include a uint64 sequence number in the first 8 bytes.
+	Now run the client and proxy in the cloud and verify we get zero packet loss at a baseline load.
+
+	---------------
 
 
 
