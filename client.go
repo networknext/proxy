@@ -14,9 +14,12 @@ import (
 	"encoding/binary"
 )
 
-const PacketBytes = 256
-const NumThreads = 1000
+const PacketsPerSecond = 100
+const PacketBytes = 1500
+const NumClients = 5000
 const BaseClientPort = 5000
+const SocketReadBuffer = 10000000
+const SocketWriteBuffer = 10000000
 
 func ParseAddress(input string) *net.UDPAddr {
 	address := &net.UDPAddr{}
@@ -39,19 +42,19 @@ func main() {
 
 	ctx := context.Background()
 	
-	threadConnection := make([]*net.UDPConn, NumThreads)
+	threadConnection := make([]*net.UDPConn, NumClients)
 
 	go func() {
 
 		serverIP := ParseAddress("10.128.0.2:40000")
 
-		threadPacketSent := make([]uint64, NumThreads)
-		threadPacketReceived := make([]uint64, NumThreads)
-		threadPacketLost := make([]uint64, NumThreads)
+		threadPacketSent := make([]uint64, NumClients)
+		threadPacketReceived := make([]uint64, NumClients)
+		threadPacketLost := make([]uint64, NumClients)
 
-		wg.Add(NumThreads * 2)
+		wg.Add(NumClients * 2)
 
-		for i := 0; i < NumThreads; i++ {
+		for i := 0; i < NumClients; i++ {
 
 			go func(ctx context.Context, thread int) {
 
@@ -71,16 +74,16 @@ func main() {
 				conn := lp.(*net.UDPConn)
 				threadConnection[thread] = conn
 
-				if err := conn.SetReadBuffer(10000000); err != nil {
+				if err := conn.SetReadBuffer(SocketReadBuffer); err != nil {
 					fmt.Printf("error: could not set connection read buffer size: %v\n", err)
 				}
-				if err := conn.SetWriteBuffer(10000000); err != nil {
+				if err := conn.SetWriteBuffer(SocketWriteBuffer); err != nil {
 					fmt.Printf("error: could not set connection write buffer size: %v\n", err)
 				}
 
 				// track packet loss
 
-				const PacketBufferSize = 2048;
+				const PacketBufferSize = PacketsPerSecond * 2;
 
 				receivedPackets := make([]uint64, PacketBufferSize)
 
@@ -91,14 +94,14 @@ func main() {
 					writePacketData := make([]byte, PacketBytes)
 					writeSequence := uint64(0)
 
-				    ticker := time.NewTicker(time.Millisecond)
+				    ticker := time.NewTicker(10 * time.Millisecond)
 				    for {
 				        select {
 				        case <-ticker.C:
 			        		binary.LittleEndian.PutUint64(writePacketData[:8], writeSequence)
 							if _, err := conn.WriteToUDP(writePacketData, serverIP); err == nil {
-								if writeSequence > 1000 {
-									oldSequence := writeSequence - 1000
+								if writeSequence > 100 {
+									oldSequence := writeSequence - 100
 									index := oldSequence % PacketBufferSize
 									if atomic.LoadUint64(&receivedPackets[index]) != oldSequence {
 										atomic.AddUint64(&threadPacketLost[thread], 1)
@@ -144,7 +147,7 @@ func main() {
 		go func() {
 			var totalSent, totalReceived, totalLost uint64
 			for range time.Tick(time.Second * 5) {
-				for i := 0; i < NumThreads; i++ {
+				for i := 0; i < NumClients; i++ {
 					sent := atomic.LoadUint64(&threadPacketSent[i])
 					received := atomic.LoadUint64(&threadPacketReceived[i])
 					lost := atomic.LoadUint64(&threadPacketLost[i])

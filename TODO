@@ -14,9 +14,21 @@ DONE
 
 	Track packet loss via packet buffer, and print it out.
 
+	Now run the client and proxy in the cloud and verify we get zero packet loss at a baseline load.
+
+	Confirmed. Works with two clients, starts dropping packets with a third.
+
+	What's interesting is that if the proxy gets overloaded, reducing the load doesn't seem to fix it.
+
+	Clients get dropped packets until they are all reset. Seems weird. Shouldn't the dropped packets stop once load is reduced? Does the proxy get into a pathological oveloaded state?
+
 TODO
 
-	Now run the client and proxy in the cloud and verify we get zero packet loss at a baseline load.
+	Next step is to implement an actual server, and make the proxy "real" (eg. it always uploads packets for a client to a specific server).
+
+	eg.
+
+	client <-> proxy <-> server.
 
 	---------------
 
