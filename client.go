@@ -13,7 +13,7 @@ import (
 )
 
 const PacketBytes = 256
-const NumThreads = 10000
+const NumThreads = 1000
 const BaseClientPort = 5000
 
 func ParseAddress(input string) *net.UDPAddr {
@@ -70,10 +70,10 @@ func main() {
 				conn := lp.(*net.UDPConn)
 				threadConnection[thread] = conn
 
-				if err := conn.SetReadBuffer(4000000); err != nil {
+				if err := conn.SetReadBuffer(10000000); err != nil {
 					fmt.Printf("error: could not set connection read buffer size: %v\n", err)
 				}
-				if err := conn.SetWriteBuffer(4000000); err != nil {
+				if err := conn.SetWriteBuffer(10000000); err != nil {
 					fmt.Printf("error: could not set connection write buffer size: %v\n", err)
 				}
 
@@ -81,7 +81,7 @@ func main() {
 
 				go func() {
 
-				    ticker := time.NewTicker(10 * time.Millisecond)
+				    ticker := time.NewTicker(time.Millisecond)
 				    for {
 				        select {
 				        case <-ticker.C:
