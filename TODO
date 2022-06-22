@@ -1,70 +1,17 @@
 DONE
 
-	Implement the proxy to act as a packet reflector (eg. send packet back to sender, initially...)
+	Implement basic throughput test in google cloud. How far can I push it?
 
-	Gotta do that thing on linux to fix the socket buffer sizes etc, eg. especially do a script
+	Seems that we can do around 3 * 1000 * 1000 = 3m packets per-second, @ 256 bytes average packet size.
 
-	Setup bootstrap.sh
+	We seem to overload around 0.7 gigabytes per-second. This is reasonable enough for now.
 
-	Setup so that the proxy by default looks up the number of cores in linux, and creates that many threads.
-
-	Setup a new google cloud project "proxy"
-
-	Inside the "proxy" google cloud project, setup a VM with latest machine type with max cores and high perf io.
-
-	Run the proxy. Verify it picks up all cores :)
+	The limit seems to be more packets per-second, rather than bandwidth. Greater throughput can be obtained, with larger packet sizes.
 
 TODO
 
-	---------
+	Extend the client to track packet loss and print out.
 
-	Setup a go client to send UDP packets, receive them, and count how many received. Zero deps.
+	Create a bootstrap script for the client, so it can be setup as a mig and scaled up/down easily.
 
-	---------
-
-	Setup a managed instance group that manually scales up/down.
-
-	---------
-
-	Implement basic throughput test in google cloud. How far can I push it?
-
-	---------
-
-
-
-
-
-
-
-
-
-
-
-
-	---------
-
-	Implement env var overrides
-
-		bind address, 
-
-		socket buffer sizes, 
-
-		num threads, 
-
-		thread data bytes
-
-	Print out config on start.
-
-	--------
-
-	Implement basic throughput test in bare metal.
-
-	Integrate network next server into thread data. Will involve adjusting the SDK so that I can take over packet send/receive on behalf of server, and insert received packets directly into the SDK, and hook a callback for send packets...
-
-	Setup client, proxy, server in google cloud and test throughput.
-
-	Test throughput in GCore bare metal ashburn.
-
-	Done.
-
-	----------
+	Explore alternative ways to receive and send packets, eg. sendmmsg, recvmmsg in Linux, to potentially reduce overhead.

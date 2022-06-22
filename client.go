@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -86,7 +87,7 @@ func main() {
 				        select {
 				        case <-ticker.C:
 							if _, err := conn.WriteToUDP(packetData, serverIP); err == nil {
-								threadPacketSent[thread]++
+								atomic.AddUint64(&threadPacketSent[thread], 1)
 							}
 				        case <-ctx.Done():
 				            break
@@ -105,7 +106,7 @@ func main() {
 					for {
 						_, _, err := conn.ReadFromUDP(packetReceived)
 						if err == nil {
-							threadPacketReceived[thread]++
+							atomic.AddUint64(&threadPacketReceived[thread], 1)
 						}
 					}
 
@@ -123,8 +124,10 @@ func main() {
 			var totalSent, totalReceived uint64
 			for range time.Tick(time.Second * 5) {
 				for i := 0; i < NumThreads; i++ {
-					totalSent += threadPacketSent[i]
-					totalReceived += threadPacketReceived[i]
+					sent := atomic.LoadUint64(&threadPacketSent[i])
+					received := atomic.LoadUint64(&threadPacketReceived[i])
+					totalSent += sent
+					totalReceived += received
 				}
 				fmt.Printf("sent %d, received %d\n", totalSent, totalReceived)
 			}
