@@ -529,10 +529,12 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 		if ( proxy_address_equal( &from, &config.client_address ) )
 		{
+			printf( "client -> proxy -> server\n" );
 			proxy_platform_socket_send_packet( thread_data->socket, &config.server_address, buffer, packet_bytes );
 		}
 		else if ( proxy_address_equal( &from, &config.proxy_address ) )
 		{
+			printf( "server -> proxy -> client\n" );
 			proxy_platform_socket_send_packet( thread_data->socket, &config.client_address, buffer, packet_bytes );
 		}
 	}

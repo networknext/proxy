@@ -36,9 +36,15 @@ DONE
 
 	Implement proxy mode (default).
 
+	Test server and proxy mode locally.
+
 TODO
 
-	Test server and proxy mode locally.
+	Now let's see if we can get zero packet loss with client <-> proxy <-> server.
+
+	if it doesn't work right away without tuning changes to the server, then we know the tuning is having an effect...
+
+	otherwise, if it works right away, the tuning isn't doing anything.
 
 	---------------
 
