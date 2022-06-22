@@ -533,6 +533,8 @@ int main()
 	    	printf( "error: failed to set thread affinity to core %d\n", i );
 	    	exit(1);
 	    }
+
+	    proxy_platform_thread_high_priority( thread_data[i]->thread );
 	}
 
 	while ( !quit )
