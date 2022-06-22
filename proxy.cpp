@@ -525,7 +525,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		if ( packet_bytes == 0 )
 			continue;
 
-		printf( "received packet\n" );
+		char string_buffer[2048];
+		printf( "received packet from %s\n", proxy_address_to_string( &from, string_buffer ) );
 
 		if ( proxy_address_equal( &from, &config.client_address ) )
 		{
