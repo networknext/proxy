@@ -74,6 +74,11 @@ bool proxy_init()
 	if ( config.num_threads <= 0 )
 	{
 		config.num_threads = proxy_platform_num_cores();
+
+        if ( config.num_threads > 16 )
+        {
+            config.num_threads = 16;
+        }
 	}
 
     return true;
