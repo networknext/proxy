@@ -22,13 +22,23 @@ DONE
 
 	Clients get dropped packets until they are all reset. Seems weird. Shouldn't the dropped packets stop once load is reduced? Does the proxy get into a pathological oveloaded state?
 
-TODO
-
 	Next step is to implement an actual server, and make the proxy "real" (eg. it always uploads packets for a client to a specific server).
 
-	eg.
+	Lock down the proxy so it has an assigned internal ip address.
 
-	client <-> proxy <-> server.
+	Create a new server VM so it has an assigned internal IP address.
+
+	Setup the server VM so it is able to build and run proxy in release avx2.
+
+	Add configuration vars to proxy.cpp so we have the proxy and server addresses hardcoded in there.
+
+	Implement server mode when passing in "server" as argv[1]
+
+	Implement proxy mode (default).
+
+TODO
+
+	Test server and proxy mode locally.
 
 	---------------
 

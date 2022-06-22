@@ -37,6 +37,9 @@ extern int proxy_platform_num_cores();
 struct proxy_config_t
 {
 	proxy_address_t bind_address;
+	proxy_address_t client_address;
+	proxy_address_t proxy_address;
+	proxy_address_t server_address;
 	int num_threads;
 	int max_packet_size;
 	int thread_data_bytes;
@@ -61,6 +64,10 @@ bool proxy_init()
 	config.bind_address.type = PROXY_ADDRESS_IPV4;
 	config.bind_address.port = 40000;
 
+	proxy_address_parse( &config.client_address, "10.128.0.3:40000" );
+	proxy_address_parse( &config.proxy_address, "10.128.0.2:40000" );
+	proxy_address_parse( &config.server_address, "10.128.0.7:40000" );
+
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.socket_send_buffer_size = 10000000;
 	config.socket_receive_buffer_size = 10000000;
@@ -68,8 +75,6 @@ bool proxy_init()
 	config.socket_send_buffer_size = 1000000;
 	config.socket_receive_buffer_size = 1000000;
 #endif
-
-	// todo: env overrides
 
 	if ( config.num_threads <= 0 )
 	{
@@ -452,7 +457,7 @@ struct proxy_thread_data_t
 	// ...
 };
 
-static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
+static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_function( void * data )
 {
 	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
 
@@ -492,6 +497,55 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
     PROXY_PLATFORM_THREAD_RETURN();
 }
 
+// --------------------------------------------------------------------
+
+static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
+{
+	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
+
+	printf( "thread %d started\n", thread_data->thread_number );
+
+    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+
+    if ( !thread_data->socket )
+    {
+    	printf( "error: could not create socket\n" );
+    	exit(1);
+    }
+
+	while ( true )
+	{
+		uint8_t buffer[config.max_packet_size];
+
+		proxy_address_t from;
+
+		int packet_bytes = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer, config.max_packet_size );
+
+		if ( packet_bytes < 0 )
+			break;
+
+		if ( packet_bytes == 0 )
+			continue;
+
+		if ( proxy_address_equal( &from, &config.client_address ) )
+		{
+			proxy_platform_socket_send_packet( thread_data->socket, &config.server_address, buffer, packet_bytes );
+		}
+		else if ( proxy_address_equal( &from, &config.proxy_address ) )
+		{
+			proxy_platform_socket_send_packet( thread_data->socket, &config.client_address, buffer, packet_bytes );
+		}
+	}
+
+	proxy_platform_socket_destroy( thread_data->socket );
+
+	printf( "thread %d stopped\n", thread_data->thread_number );	
+
+	fflush( stdout );
+
+    PROXY_PLATFORM_THREAD_RETURN();
+}
+
 // ---------------------------------------------------------------------
 
 static volatile int quit = 0;
@@ -501,16 +555,25 @@ void interrupt_handler( int signal )
     (void) signal; quit = 1;
 }
 
-int main()
+int main( int argc, char * argv[] )
 {
 	signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
-	printf( "network next proxy\n" );
-
     if ( !proxy_init() )
     {
-        printf( "error: failed to initialize proxy\n" );
+        printf( "error: failed to initialize\n" );
         exit(1);
+    }
+
+    const bool server_mode = ( argc == 2 ) && strcmp( argv[1], "server" ) == 0;
+
+    if ( server_mode )
+    {
+		printf( "network next server\n" );
+    }
+    else
+    {
+		printf( "network next proxy\n" );    	
     }
 
     proxy_thread_data_t * thread_data[config.num_threads];
@@ -526,7 +589,7 @@ int main()
 
 		thread_data[i]->thread_number = i;
 
-	    thread_data[i]->thread = proxy_platform_thread_create( proxy_thread_function, thread_data[i] );
+	    thread_data[i]->thread = proxy_platform_thread_create( server_mode ? server_thread_function : proxy_thread_function, thread_data[i] );
 	    if ( !thread_data[i]->thread )
 	    {
 	        printf( "error: failed to create thread\n" );
