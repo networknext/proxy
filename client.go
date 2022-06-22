@@ -11,10 +11,11 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"encoding/binary"
 )
 
 const PacketBytes = 256
-const NumThreads = 1000
+const NumThreads = 100//0
 const BaseClientPort = 5000
 
 func ParseAddress(input string) *net.UDPAddr {
@@ -46,8 +47,7 @@ func main() {
 
 		threadPacketSent := make([]uint64, NumThreads)
 		threadPacketReceived := make([]uint64, NumThreads)
-
-		packetData := make([]byte, PacketBytes)
+		threadPacketLost := make([]uint64, NumThreads)
 
 		wg.Add(NumThreads * 2)
 
@@ -71,23 +71,43 @@ func main() {
 				conn := lp.(*net.UDPConn)
 				threadConnection[thread] = conn
 
+/*
 				if err := conn.SetReadBuffer(10000000); err != nil {
 					fmt.Printf("error: could not set connection read buffer size: %v\n", err)
 				}
 				if err := conn.SetWriteBuffer(10000000); err != nil {
 					fmt.Printf("error: could not set connection write buffer size: %v\n", err)
 				}
+				*/
+
+				// track packet loss
+
+				const PacketBufferSize = 2048;
+
+				receivedPackets := make([]uint64, PacketBufferSize)
 
 				// write packets
 
 				go func() {
 
+					writePacketData := make([]byte, PacketBytes)
+					writeSequence := uint64(0)
+
 				    ticker := time.NewTicker(time.Millisecond)
 				    for {
 				        select {
 				        case <-ticker.C:
-							if _, err := conn.WriteToUDP(packetData, serverIP); err == nil {
+			        		binary.LittleEndian.PutUint64(writePacketData[:8], writeSequence)
+							if _, err := conn.WriteToUDP(writePacketData, serverIP); err == nil {
+								if writeSequence > 1000 {
+									oldSequence := writeSequence - 1000
+									index := oldSequence % PacketBufferSize
+									if atomic.LoadUint64(&receivedPackets[index]) != oldSequence {
+										atomic.AddUint64(&threadPacketLost[thread], 1)
+									}
+								}
 								atomic.AddUint64(&threadPacketSent[thread], 1)
+								writeSequence++
 							}
 				        case <-ctx.Done():
 				            break
@@ -101,11 +121,14 @@ func main() {
 
 				go func() {
 
-					packetReceived := make([]byte, PacketBytes)
+					readPacketData := make([]byte, PacketBytes)
 					
 					for {
-						_, _, err := conn.ReadFromUDP(packetReceived)
-						if err == nil {
+						readPacketBytes, _, err := conn.ReadFromUDP(readPacketData)
+						if err == nil && readPacketBytes == PacketBytes {
+							readSequence := binary.LittleEndian.Uint64(readPacketData[:8])
+							index := readSequence % PacketBufferSize
+							atomic.StoreUint64(&receivedPackets[index], readSequence)
 							atomic.AddUint64(&threadPacketReceived[thread], 1)
 						}
 					}
@@ -121,15 +144,17 @@ func main() {
 		// print stats
 
 		go func() {
-			var totalSent, totalReceived uint64
+			var totalSent, totalReceived, totalLost uint64
 			for range time.Tick(time.Second * 5) {
 				for i := 0; i < NumThreads; i++ {
 					sent := atomic.LoadUint64(&threadPacketSent[i])
 					received := atomic.LoadUint64(&threadPacketReceived[i])
+					lost := atomic.LoadUint64(&threadPacketLost[i])
 					totalSent += sent
 					totalReceived += received
+					totalLost += lost
 				}
-				fmt.Printf("sent %d, received %d\n", totalSent, totalReceived)
+				fmt.Printf("sent %d, received %d, lost %d\n", totalSent, totalReceived, totalLost)
 			}
 		}()
 

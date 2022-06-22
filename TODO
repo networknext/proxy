@@ -8,9 +8,29 @@ DONE
 
 	The limit seems to be more packets per-second, rather than bandwidth. Greater throughput can be obtained, with larger packet sizes.
 
+	Upgrade client to use atomics.
+
 TODO
 
-	Extend the client to track packet loss and print out.
+	Extend packets sent to proxy to include a uint64 sequence number in the first 8 bytes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------------
 
 	Create a bootstrap script for the client, so it can be setup as a mig and scaled up/down easily.
 
