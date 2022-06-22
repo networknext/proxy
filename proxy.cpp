@@ -453,7 +453,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	printf( "thread %d started\n", thread_data->thread_number );
 
-    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
     if ( !thread_data->socket )
     {
