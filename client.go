@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const PacketBytes = 1300
+const PacketBytes = 256
 const NumThreads = 10000
 const BaseClientPort = 5000
 
