@@ -497,8 +497,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
     PROXY_PLATFORM_THREAD_RETURN();
 }
 
-// --------------------------------------------------------------------
-
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
 {
 	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
@@ -526,6 +524,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 		if ( packet_bytes == 0 )
 			continue;
+
+		printf( "received packet\n" );
 
 		if ( proxy_address_equal( &from, &config.client_address ) )
 		{
