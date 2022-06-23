@@ -14,12 +14,12 @@ import (
 	"encoding/binary"
 )
 
-const NumClients = 1 // 4000
+const NumClients = 1000
 const PacketsPerSecond = 100
 const PacketBytes = 1200
 const BaseClientPort = 5000
-const SocketReadBuffer = 1000000 // 10000000
-const SocketWriteBuffer = 1000000 // 10000000
+const SocketReadBuffer = 10000000
+const SocketWriteBuffer = 10000000
 
 func ParseAddress(input string) *net.UDPAddr {
 	address := &net.UDPAddr{}
