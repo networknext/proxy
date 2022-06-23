@@ -62,9 +62,7 @@ bool proxy_init()
 
 	config.num_threads = 0;
 
-	config.num_slots_per_thread = 256;
-
-	config.slot_base_port = 41000;
+	config.num_slots_per_thread = 1000;
 
 	config.max_packet_size = 100; // 1500;
 
@@ -482,7 +480,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 	proxy_address_t bind_address = config.bind_address;
 
-	bind_address.port = config.slot_base_port + thread_data->thread_number * config.num_slots_per_thread + thread_data->slot_number;
+	bind_address.port = 0; // let the system pick a port for the per-client slot proxy sockets
 
     thread_data->socket = proxy_platform_socket_create( &bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
