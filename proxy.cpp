@@ -27,7 +27,7 @@
 #include <signal.h>
 #include <unordered_map>
 
-#define debug_printf(...) (0)
+#define debug_printf(...) ((void)0)
 
 // ---------------------------------------------------------------------
 
