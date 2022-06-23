@@ -16,7 +16,7 @@ import (
 
 const NumClients = 100
 const PacketsPerSecond = 100
-const PacketBytes = 1200
+const PacketBytes = 100
 const BaseClientPort = 50000
 const SocketReadBuffer = 10000000
 const SocketWriteBuffer = 10000000
