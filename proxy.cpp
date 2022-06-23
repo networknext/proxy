@@ -671,7 +671,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 					thread_data->slot_thread_data[slot]->allocated = true;
 					thread_data->slot_thread_data[slot]->client_address = from;
 					proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
-					thread_data->proxy_hash->insert( std::make_pair<proxy_address_t,int>(from, slot) );
+					thread_data->proxy_hash->insert( std::make_pair( from, slot ) );
   					break;
   				}
   			}
