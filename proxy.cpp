@@ -43,6 +43,7 @@ struct proxy_config_t
 	int max_packet_size;
 	int proxy_thread_data_bytes;
 	int slot_thread_data_bytes;
+    int slot_timeout_seconds;
     int socket_send_buffer_size;
     int socket_receive_buffer_size;
 	proxy_address_t bind_address;
@@ -69,6 +70,8 @@ bool proxy_init()
 	config.proxy_thread_data_bytes = 10 * 1024 * 1024;
 
 	config.proxy_thread_data_bytes = 1 * 1024 * 1024;
+
+	config.slot_timeout_seconds = 60;
 
 	memset( &config.bind_address, 0, sizeof(proxy_address_t) );
 	config.bind_address.type = PROXY_ADDRESS_IPV4;
@@ -639,6 +642,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 			if ( allocated )
 			{
 				// forward packet to server
+
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
 			}
 
@@ -646,30 +650,33 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
   		else
   		{
   			// new client. add to slot if possible
+
+  			int slot = -1;
+  			for ( int i = 0; i < config.num_slots_per_thread; ++i )
+  			{
+  				double last_packet_receive_time = thread_data->slot_data[i].last_packet_receive_time;
+
+  				double time_since_last_packet_receive = proxy_time() - last_packet_receive_time;
+
+  				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
+  				{
+  					slot = i;
+					proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
+					thread_data->slot_thread_data[slot]->allocated = true;
+					thread_data->slot_thread_data[slot]->client_address = from;
+					proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
+					thread_data->proxy_hash->insert( std::make_pair<proxy_address_t,int>(from, slot) );
+  					break;
+  				}
+  			}
+
+  			if ( slot < 0 )
+  				continue;
+
+			// forward packet to server
+
+			proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
   		}
-
-    	// todo: quickly look up if address is assigned to a slot
-
-		// todo: if it is, forward the packet to the server via that slot's socket
-
-		// todo: if not assigned to a slot, search for a free slot (get current time, find first slot with current time - last receive time older than timeout)
-
-		// todo: if free slot is found, assign to slot and forward packet to server
-
-		// todo: if no free slot is found, drop the packet
-
-		/*
-		if ( proxy_address_equal( &from, &config.client_address ) )
-		{
-			printf( "client -> proxy -> server\n" );
-			proxy_platform_socket_send_packet( thread_data->socket, &config.server_address, buffer, packet_bytes );
-		}
-		else if ( proxy_address_equal( &from, &config.proxy_address ) )
-		{
-			printf( "server -> proxy -> client\n" );
-			proxy_platform_socket_send_packet( thread_data->socket, &config.client_address, buffer, packet_bytes );
-		}
-		*/
 	}
 
 	// shutdown
