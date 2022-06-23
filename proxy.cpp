@@ -27,6 +27,8 @@
 #include <signal.h>
 #include <unordered_map>
 
+#define debug_printf(...) (0)
+
 // ---------------------------------------------------------------------
 
 extern bool proxy_platform_init();
@@ -479,7 +481,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 {
 	slot_thread_data_t * thread_data = (slot_thread_data_t*) data;
 
-	printf( "proxy thread %d slot thread %d started\n", thread_data->thread_number, thread_data->slot_number );
+	debug_printf( "proxy thread %d slot thread %d started\n", thread_data->thread_number, thread_data->slot_number );
 
 	proxy_address_t bind_address = config.bind_address;
 
@@ -492,6 +494,10 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
     	printf( "error: could not create slot socket\n" );
     	exit(1);
     }
+
+    char string_buffer[1024];
+    
+    (void) string_buffer;
 
 	while ( true )
 	{
@@ -517,23 +523,21 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 			if ( allocated )
 			{
 				// forward packet to client
-                char string_buffer[1024];
-                printf( "proxy thread %d slot thread %d forwarding %d byte packet to client %s\n", thread_data->thread_number, thread_data->slot_number, packet_bytes, proxy_address_to_string( &client_address, string_buffer ) );
+                debug_printf( "proxy thread %d slot thread %d forwarding %d byte packet to client %s\n", thread_data->thread_number, thread_data->slot_number, packet_bytes, proxy_address_to_string( &client_address, string_buffer ) );
 				proxy_platform_socket_send_packet( thread_data->socket, &client_address, buffer, packet_bytes );
 			}
             else
             {
-                printf( "proxy thread %d slot thread %d received packet from server, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number );
+                debug_printf( "proxy thread %d slot thread %d received packet from server, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number );
             }
 		}
         else
         {
-            char address_buffer[1024];
-            printf( "proxy thread %d slot thread %d received packet from %s (not server)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, address_buffer ) );
+            debug_printf( "proxy thread %d slot thread %d received packet from %s (not server)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
         }
 	}
 
-	printf( "proxy thread %d slot thread %d stopped\n", thread_data->thread_number, thread_data->slot_number );
+	debug_printf( "proxy thread %d slot thread %d stopped\n", thread_data->thread_number, thread_data->slot_number );
 
 	proxy_platform_socket_destroy( thread_data->socket );
 
@@ -622,6 +626,10 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
     // process received packets
 
+    char string_buffer[1024];
+
+    (void) string_buffer;
+
 	while ( true )
 	{
 		uint8_t buffer[config.max_packet_size];
@@ -654,12 +662,12 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 			{
 				// forward packet to server
 
-	  			printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
+	  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
 			}
 			else
 			{
-  				printf( "proxy thread %d dropped packet because slot %d is not allocated?\n", thread_data->thread_number, slot );
+  				debug_printf( "proxy thread %d dropped packet because slot %d is not allocated?\n", thread_data->thread_number, slot );
 			}
   		}
   		else
@@ -675,8 +683,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
   				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
   				{
-	  				char buffer[1024];
-	  				printf( "proxy thread %d new client %s in slot %d\n", thread_data->thread_number, proxy_address_to_string( &from, buffer ), i );
+	  				debug_printf( "proxy thread %d new client %s in slot %d\n", thread_data->thread_number, proxy_address_to_string( &from, string_buffer ), i );
   					slot = i;
 					proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
 					thread_data->slot_thread_data[slot]->allocated = true;
@@ -689,21 +696,20 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
   			if ( slot < 0 )
   			{
-  				char buffer[1024];
-  				printf( "proxy thread %d dropped packet. no client slot found for address %s\n", thread_data->thread_number, proxy_address_to_string( &from, buffer ) );
+  				debug_printf( "proxy thread %d dropped packet. no client slot found for address %s\n", thread_data->thread_number, proxy_address_to_string( &from, string_buffer ) );
   				continue;
   			}
 
 			// forward packet to server
 
-  			printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
+  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 			proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
   		}
 	}
 
 	// shutdown
 
-	printf( "proxy thread %d stopping...\n", thread_data->thread_number );	
+	debug_printf( "proxy thread %d stopping...\n", thread_data->thread_number );	
 
 	proxy_platform_socket_destroy( thread_data->socket );
 
@@ -712,14 +718,14 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		proxy_platform_socket_close( thread_data->slot_thread_data[i]->socket );
 	}
 
-	printf( "proxy thread %d joining slot threads\n", thread_data->thread_number );
+	debug_printf( "proxy thread %d joining slot threads\n", thread_data->thread_number );
 
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
 		proxy_platform_thread_join( thread_data->slot_thread_data[i]->thread );
 	}
     
-	printf( "proxy thread %d destroying slot threads\n", thread_data->thread_number );
+	debug_printf( "proxy thread %d destroying slot threads\n", thread_data->thread_number );
 
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
@@ -750,6 +756,10 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
     	exit(1);
     }
 
+    char string_buffer[1024];
+
+    (void) string_buffer;
+
 	while ( true )
 	{
 		uint8_t buffer[config.max_packet_size];
@@ -764,8 +774,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 		if ( packet_bytes == 0 )
 			continue;
 
-		char string_buffer[1024];
-		printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
+		debug_printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
 
 		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
 	}
@@ -856,21 +865,21 @@ int main( int argc, char * argv[] )
 
 	printf( "\nshutting down...\n" );
 
-	printf( "closing sockets\n" );
+	debug_printf( "closing sockets\n" );
 
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
 		proxy_platform_socket_close( thread_data[i]->socket );
 	}
 
-	printf( "joining threads\n" );
+	debug_printf( "joining threads\n" );
 
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
 		proxy_platform_thread_join( thread_data[i]->thread );
 	}
     
-	printf( "destroying threads\n" );
+	debug_printf( "destroying threads\n" );
 
 	for ( int i = 0; i < config.num_threads; i++ )
 	{

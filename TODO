@@ -38,10 +38,14 @@ DONE
 
 	This should be enough to get the proxy working.
 
-TODO
-
 	Have the proxy part coded (in theory). 
 
 	Test it in google cloud with a single client to verify logic w. logs, and especially, to verify that packets from a single client stays on one thread.
+
+	Works fine.
+
+TODO
+
+	Now move the printfs to debug_print #define... and nop.
 
 	And then scale it up to 1000 clients... :)
