@@ -642,6 +642,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 			continue;
 
 		proxy_hash_t::iterator itor = thread_data->proxy_hash->find( from );
+
   		if ( itor != thread_data->proxy_hash->end() )
   		{
   			// found existing slot for client
@@ -683,14 +684,14 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
   				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
   				{
-	  				debug_printf( "proxy thread %d new client %s in slot %d\n", thread_data->thread_number, proxy_address_to_string( &from, string_buffer ), i );
+	  				printf( "new client %s in thread %d slot %d\n", proxy_address_to_string( &from, string_buffer ), thread_data->thread_number, i );
   					slot = i;
 					proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
 					thread_data->slot_thread_data[slot]->allocated = true;
 					thread_data->slot_thread_data[slot]->client_address = from;
 					proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
 					thread_data->proxy_hash->insert( std::make_pair( from, slot ) );
-                    thread_data->slot_data[i].last_packet_receive_time = current_time;
+                    thread_data->slot_data[slot].last_packet_receive_time = current_time;
   					break;
   				}
   			}

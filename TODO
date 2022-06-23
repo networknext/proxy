@@ -48,7 +48,13 @@ DONE
 
 	And then scale it up to 1000 clients... :)
 
-TODO
-
 	Found a bug. Was not setting the last packet received time, so slots were getting continually stomped.
+
+	Fixed the stomp bug, but still getting some packet loss.
+
+	Verified that no packet loss occurs when directly connecting to server, so the proxy is at fault.
+
+TODO	
+
+	Must be some other logic error... the load is really not high enough for the proxy to be dropping any packets.
 
