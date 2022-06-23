@@ -28,8 +28,6 @@ DONE
 
 	If slot socket receives packet from server, check if allocated and if so, forward packet to client address.
 
-TODO
-
 	When packet is received on the proxy socket:
 
 	1. It must be from a client... check.
@@ -40,4 +38,10 @@ TODO
 
 	This should be enough to get the proxy working.
 
+TODO
 
+	Have the proxy part coded (in theory). 
+
+	Test it in google cloud with a single client to verify logic w. logs, and especially, to verify that packets from a single client stays on one thread.
+
+	And then scale it up to 1000 clients... :)
