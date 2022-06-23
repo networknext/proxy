@@ -46,7 +46,7 @@ func main() {
 
 	go func() {
 
-		serverIP := ParseAddress("10.128.0.7:40000")//2:40000")
+		serverIP := ParseAddress("10.128.0.2:40000")
 
 		threadPacketSent := make([]uint64, NumClients)
 		threadPacketReceived := make([]uint64, NumClients)
