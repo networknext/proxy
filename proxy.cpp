@@ -596,6 +596,7 @@ uint64_t proxy_fnv_finalize( proxy_fnv_t * fnv )
 
 uint64_t hash_key( const proxy_address_t * key )
 {
+	assert( key );
     proxy_fnv_t fnv;
     proxy_fnv_init( &fnv );
     proxy_fnv_write( &fnv, (const uint8_t*) &key->port, 2 );
@@ -605,6 +606,8 @@ uint64_t hash_key( const proxy_address_t * key )
 
 void hash_table_insert( hash_table_t * table, const proxy_address_t * key, int value )
 {
+	assert( table );
+
     uint64_t hash = hash_key( key );
 
     const uint64_t mask = (uint64_t)( HASH_TABLE_CAPACITY - 1 );
@@ -623,6 +626,8 @@ void hash_table_insert( hash_table_t * table, const proxy_address_t * key, int v
 
 int hash_table_get( hash_table_t * table, const proxy_address_t * key ) 
 {
+	assert( table );
+
     uint64_t hash = hash_key( key );
 
     const uint64_t mask = (uint64_t)( HASH_TABLE_CAPACITY - 1 );
@@ -631,7 +636,7 @@ int hash_table_get( hash_table_t * table, const proxy_address_t * key )
 
     while ( table->entries[index].key.type != 0 ) 
     {
-        if ( proxy_address_equal( key, &table->entries[index].key) )
+        if ( proxy_address_equal( key, &table->entries[index].key ) )
         {
         	return table->entries[index].value;
         }
@@ -917,8 +922,7 @@ int main( int argc, char * argv[] )
 
 		thread_data[i]->thread_number = i;
 
-		// todo: hash table
-		// thread_data[i]->proxy_hash = new proxy_hash_t();
+		thread_data[i]->hash_table = hash_table_create();
 		
 		thread_data[i]->slot_data = (proxy_slot_data_t*) calloc( config.num_slots_per_thread, sizeof( proxy_slot_data_t ) );
 		for ( int j = 0; j < config.num_slots_per_thread; ++j )
@@ -971,8 +975,7 @@ int main( int argc, char * argv[] )
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
 		proxy_platform_thread_destroy( thread_data[i]->thread );
-		// todo: delete hash table
-		// delete thread_data[i]->proxy_hash;
+		hash_table_destroy( thread_data[i]->hash_table );
 		free( thread_data[i]->slot_data );
 		free( thread_data[i] );
 		thread_data[i] = NULL;
