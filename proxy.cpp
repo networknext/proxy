@@ -466,7 +466,7 @@ struct slot_thread_data_t
 	proxy_platform_socket_t * socket;
 
 	// protected by mutex
-	proxy_platform_mutex_t * mutex;
+	proxy_platform_mutex_t mutex;
 	bool allocated;
 	proxy_address_t client_address;
 };
@@ -503,12 +503,12 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		if ( packet_bytes == 0 )
 			continue;
 
-		if ( next_address_equal( &from, &config.server_address ) )
+		if ( proxy_address_equal( &from, &config.server_address ) )
 		{
-			proxy_platform_mutex_aquire( thread_data->mutex );
+			proxy_platform_mutex_acquire( &thread_data->mutex );
 			bool allocated = thread_data->allocated;
 			proxy_address_t client_address = thread_data->client_address;
-			proxy_platform_mutex_release( thread_data->mutex );
+			proxy_platform_mutex_release( &thread_data->mutex );
 
 			if ( allocated )
 			{
@@ -559,6 +559,9 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 		thread_data->slot_thread_data[i]->thread_number = thread_data->thread_number;
 		thread_data->slot_thread_data[i]->slot_number = i;
+
+		proxy_platform_mutex_create( &thread_data->slot_thread_data[i]->mutex );
+
 	    thread_data->slot_thread_data[i]->thread = proxy_platform_thread_create( slot_thread_function, thread_data->slot_thread_data[i] );
 	    if ( !thread_data->slot_thread_data[i]->thread )
 	    {
@@ -631,6 +634,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
 		proxy_platform_thread_destroy( thread_data->slot_thread_data[i]->thread );
+		proxy_platform_mutex_destroy( &thread_data->slot_thread_data[i]->mutex );
 		free( thread_data->slot_thread_data[i] );
 		thread_data->slot_thread_data[i] = NULL;
 	}
