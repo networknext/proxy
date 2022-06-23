@@ -59,7 +59,8 @@ bool proxy_init()
 	if ( !proxy_platform_init() )
 		return false;
 
-	config.num_threads = 0;
+	// todo: temp one thread only
+	config.num_threads = 1;
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.num_slots_per_thread = 1000;
@@ -614,7 +615,7 @@ void hash_table_insert( hash_table_t * table, const proxy_address_t * key, int v
 
     size_t index = (size_t) ( hash & mask );
 
-    while ( table->entries[index].key.type != 0 ) 
+    while ( table->entries[index].key.type == PROXY_ADDRESS_IPV4 ) 
     {
         index ++;
         index &= mask;
@@ -624,6 +625,7 @@ void hash_table_insert( hash_table_t * table, const proxy_address_t * key, int v
     table->entries[index].value = value;
 
     assert( table->entries[index].key.type == PROXY_ADDRESS_IPV4 );
+    assert( table->entries[index].value == value );
 }
 
 int hash_table_get( hash_table_t * table, const proxy_address_t * key ) 
@@ -762,6 +764,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
   			// new client. add to slot if possible
 
   			int slot = -1;
+
   			for ( int i = 0; i < config.num_slots_per_thread; ++i )
   			{
                 double current_time = proxy_time();
@@ -773,16 +776,25 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
   				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
   				{
 	  				printf( "new client %s in thread %d slot %d\n", proxy_address_to_string( &from, string_buffer ), thread_data->thread_number, i );
+  					
   					slot = i;
+
 					proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
 					thread_data->slot_thread_data[slot]->allocated = true;
 					thread_data->slot_thread_data[slot]->client_address = from;
 					proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
+
 					hash_table_insert( thread_data->hash_table, &from, slot );
+
 					int inserted_slot = hash_table_get( thread_data->hash_table, &from );
+					
 					printf( "inserted slot = %d, expected = %d\n", inserted_slot, slot );
+					
 					fflush( stdout );
+					
 					assert( inserted_slot == slot );
+
+					break;
   				}
   			}
 
