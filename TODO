@@ -58,3 +58,10 @@ TODO
 
 	Must be some other logic error... the load is really not high enough for the proxy to be dropping any packets.
 
+	Yes, there is definitely a logic error around the slots.
+
+	Turning on debug asserts for the proxy to track it down...
+
+	Nothing immediately tripping in debug, but I did get a crash once.
+
+	Add more asserts and see what's up...
