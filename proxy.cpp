@@ -661,7 +661,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 			{
                 // todo: just in case
   				printf( "proxy thread %d dropped packet because slot %d is not allocated?\n", thread_data->thread_number, slot );
-                assert( false );
 			}
   		}
   		else
