@@ -753,6 +753,9 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 		if ( packet_bytes == 0 )
 			continue;
 
+		char string_buffer[1024];
+		printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
+
 		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
 	}
 
