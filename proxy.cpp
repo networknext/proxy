@@ -40,7 +40,8 @@ struct proxy_config_t
 	int num_slots_per_thread;
 	int slot_base_port;
 	int max_packet_size;
-	int thread_data_bytes;
+	int proxy_thread_data_bytes;
+	int slot_thread_data_bytes;
     int socket_send_buffer_size;
     int socket_receive_buffer_size;
 	proxy_address_t bind_address;
@@ -64,7 +65,9 @@ bool proxy_init()
 
 	config.max_packet_size = 1500;
 
-	config.thread_data_bytes = 10 * 1024 * 1024;
+	config.proxy_thread_data_bytes = 10 * 1024 * 1024;
+
+	config.proxy_thread_data_bytes = 1 * 1024 * 1024;
 
 	memset( &config.bind_address, 0, sizeof(proxy_address_t) );
 	config.bind_address.type = PROXY_ADDRESS_IPV4;
@@ -530,6 +533,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	printf( "proxy thread %d started\n", thread_data->thread_number );
 
+	// todo: allocate slot thread data dynamically at given config.slot_thread_data_bytes
+
 	// create slot threads
 
 	thread_data->slot_thread_data = (slot_thread_data_t*) malloc( sizeof(slot_thread_data_t*) * config.num_slots_per_thread );
@@ -691,7 +696,7 @@ int main( int argc, char * argv[] )
 
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
-		thread_data[i] = (proxy_thread_data_t*) malloc( config.thread_data_bytes );
+		thread_data[i] = (proxy_thread_data_t*) malloc( config.proxy_thread_data_bytes );
 		if ( !thread_data[i] )
 		{
 			printf( "error: could not allocate thread data\n" );
