@@ -25,7 +25,6 @@
 #include <stdarg.h>
 #include <string.h>
 #include <signal.h>
-#include <unordered_map>
 
 //#define debug_printf printf
 #define debug_printf(...) ((void)0)
@@ -541,23 +540,109 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 // ---------------------------------------------------------------------
 
-namespace std
+#define HASH_TABLE_CAPACITY 4096
+
+struct hash_table_entry_t 
 {
-	template <> struct hash<proxy_address_t>
-	{
-		size_t operator() ( const proxy_address_t & k ) const
-	    {
-	    	// ipv4 only for now
-	    	return ( size_t(k.port) << 32 )    | 
-	    		   ( size_t(k.data.ipv4[0]) << 24 ) |
-	    		   ( size_t(k.data.ipv4[1]) << 16 ) |
-	    		   ( size_t(k.data.ipv4[2]) << 8 )  |
-	    		     size_t(k.data.ipv4[3]);
-	    }
-	};
+    proxy_address_t key;
+    int value;
+};
+
+struct hash_table_t 
+{
+    hash_table_entry_t * entries;
+};
+
+hash_table_t * hash_table_create() 
+{
+    hash_table_t * table = (hash_table_t*) malloc( sizeof(hash_table_t) );
+    if ( table == NULL) 
+        return NULL;
+    table->entries = (hash_table_entry_t*) calloc( HASH_TABLE_CAPACITY, sizeof( hash_table_entry_t ) );
+    if ( table->entries == NULL ) 
+    {
+        free( table );
+        return NULL;
+    }
+    return table;
 }
 
-typedef std::unordered_map<proxy_address_t, int> proxy_hash_t;
+void hash_table_destroy( hash_table_t * table )
+{
+    free( table->entries );
+    free( table );
+}
+
+typedef uint64_t proxy_fnv_t;
+
+void proxy_fnv_init( proxy_fnv_t * fnv )
+{
+    *fnv = 0xCBF29CE484222325;
+}
+
+void proxy_fnv_write( proxy_fnv_t * fnv, const uint8_t * data, size_t size )
+{
+    for ( size_t i = 0; i < size; i++ )
+    {
+        (*fnv) ^= data[i];
+        (*fnv) *= 0x00000100000001B3;
+    }
+}
+
+uint64_t proxy_fnv_finalize( proxy_fnv_t * fnv )
+{
+    return *fnv;
+}
+
+uint64_t hash_key( const proxy_address_t * key )
+{
+    proxy_fnv_t fnv;
+    proxy_fnv_init( &fnv );
+    proxy_fnv_write( &fnv, (const uint8_t*) &key->port, 2 );
+    proxy_fnv_write( &fnv, (const uint8_t*) &key->data.ipv4, 4 );
+    return proxy_fnv_finalize( &fnv );
+}
+
+void hash_table_insert( hash_table_t * table, const proxy_address_t * key, int value )
+{
+    uint64_t hash = hash_key( key );
+
+    const uint64_t mask = (uint64_t)( HASH_TABLE_CAPACITY - 1 );
+
+    size_t index = (size_t) ( hash & mask );
+
+    while ( table->entries[index].key.type != 0 ) 
+    {
+        index ++;
+        index &= mask;
+    }
+
+    table->entries[index].key = *key;
+    table->entries[index].value = value;
+}
+
+int hash_table_get( hash_table_t * table, const proxy_address_t * key ) 
+{
+    uint64_t hash = hash_key( key );
+
+    const uint64_t mask = (uint64_t)( HASH_TABLE_CAPACITY - 1 );
+
+    size_t index = (size_t) ( hash & mask );
+
+    while ( table->entries[index].key.type != 0 ) 
+    {
+        if ( proxy_address_equal( key, &table->entries[index].key) )
+        {
+        	return table->entries[index].value;
+        }
+        index ++;
+        index &= mask;
+    }
+
+    return -1;
+}
+
+// ---------------------------------------------------------------------
 
 struct proxy_slot_data_t
 {
@@ -567,7 +652,7 @@ struct proxy_slot_data_t
 struct proxy_thread_data_t
 {
 	int thread_number;
-	proxy_hash_t * proxy_hash;
+	hash_table_t * hash_table;
 	proxy_slot_data_t * slot_data;
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
@@ -586,15 +671,13 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
-		thread_data->slot_thread_data[i] = (slot_thread_data_t*) malloc( config.slot_thread_data_bytes );
+		thread_data->slot_thread_data[i] = (slot_thread_data_t*) calloc( 1, config.slot_thread_data_bytes );
 		
 		if ( !thread_data->slot_thread_data[i] )
 		{
 	        printf( "error: could not allocate slot thread data\n" );
 			exit(1);
 		}
-
-		memset( thread_data->slot_thread_data[i], 0, config.slot_thread_data_bytes );
 
 		thread_data->slot_thread_data[i]->thread_number = thread_data->thread_number;
 		thread_data->slot_thread_data[i]->slot_number = i;
@@ -639,13 +722,11 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		if ( packet_bytes == 0 )
 			continue;
 
-		proxy_hash_t::iterator itor = thread_data->proxy_hash->find( from );
+		int slot = hash_table_get( thread_data->hash_table, &from );
 
-  		if ( itor != thread_data->proxy_hash->end() )
+		if ( slot != -1 )
   		{
   			// found existing slot for client
-  			
-  			const int slot = itor->second;
   			
   			assert( slot >= 0 );
   			assert( slot < config.num_slots_per_thread );
@@ -689,10 +770,9 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 					thread_data->slot_thread_data[slot]->allocated = true;
 					thread_data->slot_thread_data[slot]->client_address = from;
 					proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
-					thread_data->proxy_hash->insert( std::make_pair( from, slot ) );
-					proxy_hash_t::iterator itor = thread_data->proxy_hash->find( from );
-					assert( itor != thread_data->proxy_hash->end() );
-					assert( itor->second == slot );
+					hash_table_insert( thread_data->hash_table, &from, slot );
+					int inserted_slot = hash_table_get( thread_data->hash_table, &from );
+					assert( inserted_slot == slot );
   				}
   			}
 
@@ -828,18 +908,19 @@ int main( int argc, char * argv[] )
 
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
-		thread_data[i] = (proxy_thread_data_t*) malloc( config.proxy_thread_data_bytes );
+		thread_data[i] = (proxy_thread_data_t*) calloc( 1, config.proxy_thread_data_bytes );
 		if ( !thread_data[i] )
 		{
 			printf( "error: could not allocate thread data\n" );
 			exit(1);
 		}
 
-		memset( thread_data[i], 0, config.proxy_thread_data_bytes );
-
 		thread_data[i]->thread_number = i;
-		thread_data[i]->proxy_hash = new proxy_hash_t();
-		thread_data[i]->slot_data = (proxy_slot_data_t*) malloc( sizeof( proxy_slot_data_t ) * config.num_slots_per_thread );
+
+		// todo: hash table
+		// thread_data[i]->proxy_hash = new proxy_hash_t();
+		
+		thread_data[i]->slot_data = (proxy_slot_data_t*) calloc( config.num_slots_per_thread, sizeof( proxy_slot_data_t ) );
 		for ( int j = 0; j < config.num_slots_per_thread; ++j )
 		{
 			thread_data[i]->slot_data[j].last_packet_receive_time = -1000000000.0;
@@ -890,7 +971,8 @@ int main( int argc, char * argv[] )
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
 		proxy_platform_thread_destroy( thread_data[i]->thread );
-		delete thread_data[i]->proxy_hash;
+		// todo: delete hash table
+		// delete thread_data[i]->proxy_hash;
 		free( thread_data[i]->slot_data );
 		free( thread_data[i] );
 		thread_data[i] = NULL;
