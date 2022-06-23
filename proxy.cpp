@@ -519,7 +519,16 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 				// forward packet to client
 				proxy_platform_socket_send_packet( thread_data->socket, &client_address, buffer, packet_bytes );
 			}
+            else
+            {
+                printf( "proxy thread %d slot thread %d received packet from server, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number );
+            }
 		}
+        else
+        {
+            char address_buffer[1024];
+            printf( "proxy thread %d slot thread %d received packet from %s (not server)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, address_buffer ) );
+        }
 	}
 
 	printf( "proxy thread %d slot thread %d stopped\n", thread_data->thread_number, thread_data->slot_number );
