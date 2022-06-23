@@ -524,7 +524,7 @@ struct proxy_thread_data_t
 	int thread_number;
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
-	slot_thread_data_t * slot_thread_data;
+	slot_thread_data_t ** slot_thread_data;
 };
 
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
@@ -533,18 +533,24 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	printf( "proxy thread %d started\n", thread_data->thread_number );
 
-	// todo: allocate slot thread data dynamically at given config.slot_thread_data_bytes
-
 	// create slot threads
 
-	thread_data->slot_thread_data = (slot_thread_data_t*) malloc( sizeof(slot_thread_data_t*) * config.num_slots_per_thread );
-	memset( thread_data->slot_thread_data, 0, sizeof(slot_thread_data_t) * config.num_slots_per_thread );
+	thread_data->slot_thread_data = (slot_thread_data_t**) malloc( sizeof(slot_thread_data_t*) * config.num_slots_per_thread );
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
-		thread_data->slot_thread_data[i].thread_number = thread_data->thread_number;
-		thread_data->slot_thread_data[i].slot_number = i;
-	    thread_data->slot_thread_data[i].thread = proxy_platform_thread_create( slot_thread_function, &thread_data->slot_thread_data[i] );
-	    if ( !thread_data->slot_thread_data[i].thread )
+		thread_data->slot_thread_data[i] = (slot_thread_data_t*) malloc( sizeof( slot_thread_data_t ) );
+		if ( !thread_data->slot_thread_data[i] )
+		{
+	        printf( "error: could not allocate slot thread data\n" );
+			exit(1);
+		}
+
+		memset( thread_data->slot_thread_data[i], 0, sizeof(slot_thread_data_t) );
+
+		thread_data->slot_thread_data[i]->thread_number = thread_data->thread_number;
+		thread_data->slot_thread_data[i]->slot_number = i;
+	    thread_data->slot_thread_data[i]->thread = proxy_platform_thread_create( slot_thread_function, thread_data->slot_thread_data[i] );
+	    if ( !thread_data->slot_thread_data[i]->thread )
 	    {
 	        printf( "error: failed to create slot thread\n" );
 	        exit(1);
@@ -600,21 +606,23 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
-		proxy_platform_socket_close( thread_data->slot_thread_data[i].socket );
+		proxy_platform_socket_close( thread_data->slot_thread_data[i]->socket );
 	}
 
 	printf( "proxy thread %d joining slot threads\n", thread_data->thread_number );
 
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
-		proxy_platform_thread_join( thread_data->slot_thread_data[i].thread );
+		proxy_platform_thread_join( thread_data->slot_thread_data[i]->thread );
 	}
     
 	printf( "proxy thread %d destroying slot threads\n", thread_data->thread_number );
 
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
-		proxy_platform_thread_destroy( thread_data->slot_thread_data[i].thread );
+		proxy_platform_thread_destroy( thread_data->slot_thread_data[i]->thread );
+		free( thread_data->slot_thread_data[i] );
+		thread_data->slot_thread_data[i] = NULL;
 	}
 
 	fflush( stdout );
