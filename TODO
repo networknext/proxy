@@ -12,8 +12,6 @@ DONE
 
 	Leave server as is, high priority thread and pinned cores... it's simpler, and we can always test throughput on server vs. proxy by pointing the client directly at the server IP sans proxy.
 
-TODO
-
 	Actually create the slot threads, owned by each thread. This way there is no contention for slots between threads.
 
 	Port number should be 50000 + (thread_number*num_slots_per_thread) + slot
@@ -25,3 +23,19 @@ TODO
 	Make sure the slot sockets get closed on thread shutdown, and make sure the slots actually shut down.
 
 	Test everything is creating and shutting down cleanly.
+
+TODO
+
+	Now we need logic, effectively...
+
+		1. When packet is received by the proxy, we first check if it's the server
+
+		2. If it's the server, we know the client address (slot is activated), and if client address is valid, we forward the address back to the client.
+
+		3. If it's not the server, it must be a client
+
+			a) if it's a new address not seen before, then it must be a new client, search for a free slot, and set this slot to have the address of the client, ideally, setup some hash table to O(1) lookup from address to slot, *finally* then forward packet to server.
+			
+			b) if it's a slot already known (lookup in hash address -> slot), then forward the packet to server.
+
+	This logic should be sufficient to implement the proxy.
