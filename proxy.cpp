@@ -622,6 +622,8 @@ void hash_table_insert( hash_table_t * table, const proxy_address_t * key, int v
 
     table->entries[index].key = *key;
     table->entries[index].value = value;
+
+    assert( table->entries[index].key.type == PROXY_ADDRESS_IPV4 );
 }
 
 int hash_table_get( hash_table_t * table, const proxy_address_t * key ) 
@@ -634,7 +636,7 @@ int hash_table_get( hash_table_t * table, const proxy_address_t * key )
 
     size_t index = (size_t) ( hash & mask );
 
-    while ( table->entries[index].key.type == 0 ) 
+    while ( table->entries[index].key.type == PROXY_ADDRESS_IPV4 ) 
     {
         if ( proxy_address_equal( key, &table->entries[index].key ) )
         {
@@ -889,18 +891,36 @@ void interrupt_handler( int signal )
     (void) signal; quit = 1;
 }
 
-int main( int argc, char * argv[] )
+void test_hash_table()
 {
 	hash_table_t * hash_table = hash_table_create();
-	hash_table_insert( hash_table, &config.server_address, 5 );
-	int slot = hash_table_get( hash_table, &config.server_address );
-	printf( "slot = %d\n", slot );
-	fflush( stdout );
-	assert( slot == 5 );
+
+	const int NumAddresses = 100;
+
+	proxy_address_t address[NumAddresses];
+
+	for ( int i = 0; i < NumAddresses; ++i ) 
+	{
+		char buffer[1024];
+		sprintf( buffer, "127.0.0.1:%d", 50000 + i );
+		proxy_address_parse( &address[i], buffer );
+	}
+
+	for ( int i = 0; i < NumAddresses; ++i ) 
+	{
+		hash_table_insert( hash_table, &address[i], i );
+	}
+
+	for ( int i = 0; i < NumAddresses; ++i )
+	{
+		assert( hash_table_get( hash_table, &address[i] ) == i );
+	}
+
 	hash_table_destroy( hash_table );
+}
 
-	// ---------------------------
-
+int main( int argc, char * argv[] )
+{
 	signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
     if ( !proxy_init() )
@@ -908,6 +928,10 @@ int main( int argc, char * argv[] )
         printf( "error: failed to initialize\n" );
         exit(1);
     }
+
+    test_hash_table();
+
+	// ---------------------------
 
     const bool server_mode = ( argc == 2 ) && strcmp( argv[1], "server" ) == 0;
 
