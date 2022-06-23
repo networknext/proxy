@@ -62,7 +62,7 @@ bool proxy_init()
 
 	config.num_threads = 0;
 
-	config.num_slots_per_thread = 10;
+	config.num_slots_per_thread = 1000;
 
 	config.slot_base_port = 50000;
 
