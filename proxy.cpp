@@ -523,7 +523,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
         {
             // todo: just in case            
             printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
-            assert( false );
         }
 	}
 
@@ -694,7 +693,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
   			{
                 // todo: just in case
   				printf( "proxy thread %d dropped packet. no client slot found for address %s\n", thread_data->thread_number, proxy_address_to_string( &from, string_buffer ) );
-                assert( false );
   				continue;
   			}
 
