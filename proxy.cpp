@@ -50,8 +50,6 @@ struct proxy_config_t
     int socket_send_buffer_size;
     int socket_receive_buffer_size;
 	proxy_address_t bind_address;
-	proxy_address_t client_address;
-	proxy_address_t proxy_address;
 	proxy_address_t server_address;
 };
 
@@ -80,8 +78,6 @@ bool proxy_init()
 	config.bind_address.type = PROXY_ADDRESS_IPV4;
 	config.bind_address.port = 40000;
 
-	proxy_address_parse( &config.client_address, "10.128.0.3:40000" );
-	proxy_address_parse( &config.proxy_address, "10.128.0.2:40000" );
 	proxy_address_parse( &config.server_address, "10.128.0.7:40000" );
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
