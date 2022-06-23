@@ -464,11 +464,11 @@ struct slot_thread_data_t
 	int slot_number;
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
-	// ...
 
-	// todo
-	// bool allocated
-	// client_address
+	// protected by mutex
+	proxy_platform_mutex_t * mutex;
+	bool allocated;
+	proxy_address_t client_address;
 };
 
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_function( void * data )
@@ -503,9 +503,19 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		if ( packet_bytes == 0 )
 			continue;
 
-		// todo: do something with ze packet
-		(void) packet_bytes;
-		(void) buffer;
+		if ( next_address_equal( &from, &config.server_address ) )
+		{
+			proxy_platform_mutex_aquire( thread_data->mutex );
+			bool allocated = thread_data->allocated;
+			proxy_address_t client_address = thread_data->client_address;
+			proxy_platform_mutex_release( thread_data->mutex );
+
+			if ( allocated )
+			{
+				// forward packet to client
+				proxy_platform_socket_send_packet( thread_data->socket, &client_address, buffer, packet_bytes );
+			}
+		}
 	}
 
 	printf( "proxy thread %d slot thread %d stopped\n", thread_data->thread_number, thread_data->slot_number );

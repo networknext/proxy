@@ -24,18 +24,20 @@ DONE
 
 	Test everything is creating and shutting down cleanly.
 
+	Make slot data get allocated 1mb apart dynamically.
+
+	If slot socket receives packet from server, check if allocated and if so, forward packet to client address.
+
 TODO
 
-	Now we need logic, effectively...
+	When packet is received on the proxy socket:
 
-		1. When packet is received by the proxy, we first check if it's the server
+	1. It must be from a client
 
-		2. If it's the server, we know the client address (slot is activated), and if client address is valid, we forward the address back to the client.
+	2. Lookup in a hash map to see if the client already exists. If so, use the socket for that slot to forward the packet to the server.
 
-		3. If it's not the server, it must be a client
+	3. If not already existing, add entry if possible (if not, drop packet), then forward packet to server.
 
-			a) if it's a new address not seen before, then it must be a new client, search for a free slot, and set this slot to have the address of the client, ideally, setup some hash table to O(1) lookup from address to slot, *finally* then forward packet to server.
-			
-			b) if it's a slot already known (lookup in hash address -> slot), then forward the packet to server.
+	This should be enough to get the proxy working.
 
-	This logic should be sufficient to implement the proxy.
+	
