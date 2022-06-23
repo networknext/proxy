@@ -618,7 +618,7 @@ void hash_table_insert( hash_table_t * table, const proxy_address_t * key, int v
     {
         index ++;
         index &= mask;
-    }
+	}
 
     table->entries[index].key = *key;
     table->entries[index].value = value;
@@ -634,12 +634,13 @@ int hash_table_get( hash_table_t * table, const proxy_address_t * key )
 
     size_t index = (size_t) ( hash & mask );
 
-    while ( table->entries[index].key.type != 0 ) 
+    while ( table->entries[index].key.type == 0 ) 
     {
         if ( proxy_address_equal( key, &table->entries[index].key ) )
         {
         	return table->entries[index].value;
         }
+
         index ++;
         index &= mask;
     }
@@ -890,6 +891,16 @@ void interrupt_handler( int signal )
 
 int main( int argc, char * argv[] )
 {
+	hash_table_t * hash_table = hash_table_create();
+	hash_table_insert( hash_table, &config.server_address, 5 );
+	int slot = hash_table_get( hash_table, &config.server_address );
+	printf( "slot = %d\n", slot );
+	fflush( stdout );
+	assert( slot == 5 );
+	hash_table_destroy( hash_table );
+
+	// ---------------------------
+
 	signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
     if ( !proxy_init() )
