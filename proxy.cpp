@@ -520,7 +520,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 			if ( allocated )
 			{
 				// forward packet to client
-                debug_printf( "proxy thread %d slot thread %d forwarding %d byte packet to client %s\n", thread_data->thread_number, thread_data->slot_number, packet_bytes, proxy_address_to_string( &client_address, string_buffer ) );
+                debug_printf( "proxy thread %d forwarded packet to server for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
 				proxy_platform_socket_send_packet( thread_data->socket, &client_address, buffer, packet_bytes );
 			}
             else
