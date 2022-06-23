@@ -794,7 +794,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 					
 					assert( inserted_slot == slot );
 
-					thread_data->slot_thread_data[slot].last_packet_receive_time = current_time;
+					thread_data->slot_data[slot].last_packet_receive_time = current_time;
 
 					break;
   				}
