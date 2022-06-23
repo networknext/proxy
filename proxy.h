@@ -78,6 +78,45 @@ struct proxy_address_t
     union { uint8_t ipv4[4]; uint16_t ipv6[8]; } data;
     uint16_t port;
     uint8_t type;
+
+	bool operator == ( const proxy_address_t & other ) const
+  	{
+  		if ( type != other.type )
+  			return false;
+  		if ( port != other.port )
+  			return false;
+  		if ( type == PROXY_ADDRESS_IPV4 )
+  		{
+  			if ( data.ipv4[0] != other.data.ipv4[0] )
+  				return false;
+  			if ( data.ipv4[1] != other.data.ipv4[1] )
+  				return false;
+  			if ( data.ipv4[2] != other.data.ipv4[2] )
+  				return false;
+  			if ( data.ipv4[3] != other.data.ipv4[3] )
+  				return false;
+  		}
+  		else if ( type == PROXY_ADDRESS_IPV6 )
+  		{
+  			if ( data.ipv6[0] != other.data.ipv6[0] )
+  				return false;
+  			if ( data.ipv6[1] != other.data.ipv6[1] )
+  				return false;
+  			if ( data.ipv6[2] != other.data.ipv6[2] )
+  				return false;
+  			if ( data.ipv6[3] != other.data.ipv6[3] )
+  				return false;
+  			if ( data.ipv6[4] != other.data.ipv6[4] )
+  				return false;
+  			if ( data.ipv6[5] != other.data.ipv6[5] )
+  				return false;
+  			if ( data.ipv6[6] != other.data.ipv6[6] )
+  				return false;
+  			if ( data.ipv6[7] != other.data.ipv6[7] )
+  				return false;
+  		}
+  		return true;
+  	}
 };
 
 bool proxy_address_parse( struct proxy_address_t * address, const char * address_string );

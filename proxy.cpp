@@ -25,7 +25,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <signal.h>
-#include <map>
+#include <unordered_map>
 
 // ---------------------------------------------------------------------
 
@@ -530,7 +530,23 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 // ---------------------------------------------------------------------
 
-typedef std::map<proxy_address_t, int> proxy_map_t;
+namespace std
+{
+	template <> struct hash<proxy_address_t>
+	{
+		size_t operator() ( const proxy_address_t & k ) const
+	    {
+	    	// ipv4 only for now
+	    	return ( size_t(k.port) << 32 )    | 
+	    		   ( size_t(k.data.ipv4[0]) << 24 ) |
+	    		   ( size_t(k.data.ipv4[1]) << 16 ) |
+	    		   ( size_t(k.data.ipv4[2]) << 8 )  |
+	    		     size_t(k.data.ipv4[3]);
+	    }
+	};
+}
+
+typedef std::unordered_map<proxy_address_t, int> proxy_hash_t;
 
 struct proxy_slot_data_t
 {
@@ -540,7 +556,7 @@ struct proxy_slot_data_t
 struct proxy_thread_data_t
 {
 	int thread_number;
-	proxy_map_t * proxy_map;
+	proxy_hash_t * proxy_hash;
 	proxy_slot_data_t * slot_data;
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
@@ -606,10 +622,33 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		if ( packet_bytes == 0 )
 			continue;
 
-		char string_buffer[2048];
-		printf( "received packet from %s\n", proxy_address_to_string( &from, string_buffer ) );
+		proxy_hash_t::iterator itor = thread_data->proxy_hash->find( from );
+  		if ( itor != thread_data->proxy_hash->end() )
+  		{
+  			// found existing slot for client
+  			
+  			const int slot = itor->second;
+  			
+  			assert( slot >= 0 );
+  			assert( slot < config.num_slots_per_thread );
 
-		// todo: quickly look up if address is assigned to a slot
+			proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
+			bool allocated = thread_data->slot_thread_data[slot]->allocated;
+			proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
+
+			if ( allocated )
+			{
+				// forward packet to server
+				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
+			}
+
+  		}
+  		else
+  		{
+  			// new client. add to slot if possible
+  		}
+
+    	// todo: quickly look up if address is assigned to a slot
 
 		// todo: if it is, forward the packet to the server via that slot's socket
 
@@ -752,7 +791,7 @@ int main( int argc, char * argv[] )
 		memset( thread_data[i], 0, sizeof(proxy_thread_data_t) );
 
 		thread_data[i]->thread_number = i;
-		thread_data[i]->proxy_map = new proxy_map_t();
+		thread_data[i]->proxy_hash = new proxy_hash_t();
 		thread_data[i]->slot_data = (proxy_slot_data_t*) malloc( sizeof( proxy_slot_data_t ) * config.num_slots_per_thread );
 		for ( int j = 0; j < config.num_slots_per_thread; ++j )
 		{
@@ -804,7 +843,7 @@ int main( int argc, char * argv[] )
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
 		proxy_platform_thread_destroy( thread_data[i]->thread );
-		delete thread_data[i]->proxy_map;
+		delete thread_data[i]->proxy_hash;
 		free( thread_data[i]->slot_data );
 		free( thread_data[i] );
 		thread_data[i] = NULL;
