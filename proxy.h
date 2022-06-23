@@ -95,27 +95,9 @@ struct proxy_address_t
   				return false;
   			if ( data.ipv4[3] != other.data.ipv4[3] )
   				return false;
+  			return true;
   		}
-  		else if ( type == PROXY_ADDRESS_IPV6 )
-  		{
-  			if ( data.ipv6[0] != other.data.ipv6[0] )
-  				return false;
-  			if ( data.ipv6[1] != other.data.ipv6[1] )
-  				return false;
-  			if ( data.ipv6[2] != other.data.ipv6[2] )
-  				return false;
-  			if ( data.ipv6[3] != other.data.ipv6[3] )
-  				return false;
-  			if ( data.ipv6[4] != other.data.ipv6[4] )
-  				return false;
-  			if ( data.ipv6[5] != other.data.ipv6[5] )
-  				return false;
-  			if ( data.ipv6[6] != other.data.ipv6[6] )
-  				return false;
-  			if ( data.ipv6[7] != other.data.ipv6[7] )
-  				return false;
-  		}
-  		return true;
+  		return false;
   	}
 };
 

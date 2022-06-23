@@ -583,9 +583,11 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	// create slot threads
 
 	thread_data->slot_thread_data = (slot_thread_data_t**) malloc( sizeof(slot_thread_data_t*) * config.num_slots_per_thread );
+	
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
 		thread_data->slot_thread_data[i] = (slot_thread_data_t*) malloc( config.slot_thread_data_bytes );
+		
 		if ( !thread_data->slot_thread_data[i] )
 		{
 	        printf( "error: could not allocate slot thread data\n" );
@@ -688,8 +690,9 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 					thread_data->slot_thread_data[slot]->client_address = from;
 					proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
 					thread_data->proxy_hash->insert( std::make_pair( from, slot ) );
-                    thread_data->slot_data[slot].last_packet_receive_time = current_time;
-  					break;
+					proxy_hash_t::iterator itor = thread_data->proxy_hash->find( from );
+					assert( itor != thread_data->proxy_hash->end() );
+					assert( itor->second == slot );
   				}
   			}
 
