@@ -64,7 +64,7 @@ bool proxy_init()
 
 	config.num_slots_per_thread = 1000;
 
-	config.slot_base_port = 50000;
+	config.slot_base_port = 41000;
 
 	config.max_packet_size = 100; // 1500;
 
