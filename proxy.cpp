@@ -661,6 +661,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
+                thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
 			}
 			else
 			{
@@ -674,9 +675,11 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
   			int slot = -1;
   			for ( int i = 0; i < config.num_slots_per_thread; ++i )
   			{
+                double current_time = proxy_time();
+
   				double last_packet_receive_time = thread_data->slot_data[i].last_packet_receive_time;
 
-  				double time_since_last_packet_receive = proxy_time() - last_packet_receive_time;
+  				double time_since_last_packet_receive = current_time - last_packet_receive_time;
 
   				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
   				{
@@ -687,6 +690,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 					thread_data->slot_thread_data[slot]->client_address = from;
 					proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
 					thread_data->proxy_hash->insert( std::make_pair( from, slot ) );
+                    thread_data->slot_data[i].last_packet_receive_time = current_time;
   					break;
   				}
   			}

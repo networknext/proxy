@@ -44,8 +44,11 @@ DONE
 
 	Works fine.
 
-TODO
-
 	Now move the printfs to debug_print #define... and nop.
 
 	And then scale it up to 1000 clients... :)
+
+TODO
+
+	Found a bug. Was not setting the last packet received time, so slots were getting continually stomped.
+
