@@ -32,7 +32,7 @@ TODO
 
 	When packet is received on the proxy socket:
 
-	1. It must be from a client
+	1. It must be from a client... check.
 
 	2. Lookup in a hash map to see if the client already exists. If so, use the socket for that slot to forward the packet to the server.
 
@@ -40,4 +40,4 @@ TODO
 
 	This should be enough to get the proxy working.
 
-	
+

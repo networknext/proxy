@@ -25,6 +25,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <signal.h>
+#include <map>
 
 // ---------------------------------------------------------------------
 
@@ -529,9 +530,18 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 // ---------------------------------------------------------------------
 
+typedef std::map<proxy_address_t, int> proxy_map_t;
+
+struct proxy_slot_data_t
+{
+	double last_packet_receive_time;
+};
+
 struct proxy_thread_data_t
 {
 	int thread_number;
+	proxy_map_t * proxy_map;
+	proxy_slot_data_t * slot_data;
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
 	slot_thread_data_t ** slot_thread_data;
@@ -599,6 +609,17 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		char string_buffer[2048];
 		printf( "received packet from %s\n", proxy_address_to_string( &from, string_buffer ) );
 
+		// todo: quickly look up if address is assigned to a slot
+
+		// todo: if it is, forward the packet to the server via that slot's socket
+
+		// todo: if not assigned to a slot, search for a free slot (get current time, find first slot with current time - last receive time older than timeout)
+
+		// todo: if free slot is found, assign to slot and forward packet to server
+
+		// todo: if no free slot is found, drop the packet
+
+		/*
 		if ( proxy_address_equal( &from, &config.client_address ) )
 		{
 			printf( "client -> proxy -> server\n" );
@@ -609,13 +630,14 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 			printf( "server -> proxy -> client\n" );
 			proxy_platform_socket_send_packet( thread_data->socket, &config.client_address, buffer, packet_bytes );
 		}
+		*/
 	}
 
-	// shutdown proxy thread
+	// shutdown
+
+	printf( "proxy thread %d stopping...\n", thread_data->thread_number );	
 
 	proxy_platform_socket_destroy( thread_data->socket );
-
-	printf( "proxy thread %d stopped\n", thread_data->thread_number );	
 
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
@@ -638,6 +660,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		free( thread_data->slot_thread_data[i] );
 		thread_data->slot_thread_data[i] = NULL;
 	}
+
+	printf( "proxy thread %d stopped\n", thread_data->thread_number );	
 
 	fflush( stdout );
 
@@ -728,6 +752,12 @@ int main( int argc, char * argv[] )
 		memset( thread_data[i], 0, sizeof(proxy_thread_data_t) );
 
 		thread_data[i]->thread_number = i;
+		thread_data[i]->proxy_map = new proxy_map_t();
+		thread_data[i]->slot_data = (proxy_slot_data_t*) malloc( sizeof( proxy_slot_data_t ) * config.num_slots_per_thread );
+		for ( int j = 0; j < config.num_slots_per_thread; ++j )
+		{
+			thread_data[i]->slot_data[j].last_packet_receive_time = -1000000000.0;
+		}
 
 	    thread_data[i]->thread = proxy_platform_thread_create( server_mode ? server_thread_function : proxy_thread_function, thread_data[i] );
 	    if ( !thread_data[i]->thread )
@@ -774,6 +804,8 @@ int main( int argc, char * argv[] )
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
 		proxy_platform_thread_destroy( thread_data[i]->thread );
+		delete thread_data[i]->proxy_map;
+		free( thread_data[i]->slot_data );
 		free( thread_data[i] );
 		thread_data[i] = NULL;
 	}
