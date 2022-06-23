@@ -62,13 +62,17 @@ bool proxy_init()
 
 	config.num_threads = 0;
 
+#if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.num_slots_per_thread = 1000;
+#else
+	config.num_slots_per_thread = 10;
+#endif
 
 	config.max_packet_size = 100; // 1500;
 
 	config.proxy_thread_data_bytes = 10 * 1024 * 1024;
 
-	config.proxy_thread_data_bytes = 1 * 1024 * 1024;
+	config.slot_thread_data_bytes = 1 * 1024 * 1024;
 
 	config.slot_timeout_seconds = 60;
 
@@ -581,14 +585,14 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	thread_data->slot_thread_data = (slot_thread_data_t**) malloc( sizeof(slot_thread_data_t*) * config.num_slots_per_thread );
 	for ( int i = 0; i < config.num_slots_per_thread; ++i )
 	{
-		thread_data->slot_thread_data[i] = (slot_thread_data_t*) malloc( sizeof( slot_thread_data_t ) );
+		thread_data->slot_thread_data[i] = (slot_thread_data_t*) malloc( config.slot_thread_data_bytes );
 		if ( !thread_data->slot_thread_data[i] )
 		{
 	        printf( "error: could not allocate slot thread data\n" );
 			exit(1);
 		}
 
-		memset( thread_data->slot_thread_data[i], 0, sizeof(slot_thread_data_t) );
+		memset( thread_data->slot_thread_data[i], 0, config.slot_thread_data_bytes );
 
 		thread_data->slot_thread_data[i]->thread_number = thread_data->thread_number;
 		thread_data->slot_thread_data[i]->slot_number = i;
@@ -828,7 +832,7 @@ int main( int argc, char * argv[] )
 			exit(1);
 		}
 
-		memset( thread_data[i], 0, sizeof(proxy_thread_data_t) );
+		memset( thread_data[i], 0, config.proxy_thread_data_bytes );
 
 		thread_data[i]->thread_number = i;
 		thread_data[i]->proxy_hash = new proxy_hash_t();
