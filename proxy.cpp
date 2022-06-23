@@ -36,15 +36,17 @@ extern int proxy_platform_num_cores();
 
 struct proxy_config_t
 {
-	proxy_address_t bind_address;
-	proxy_address_t client_address;
-	proxy_address_t proxy_address;
-	proxy_address_t server_address;
 	int num_threads;
+	int num_slots_per_thread;
+	int slot_base_port;
 	int max_packet_size;
 	int thread_data_bytes;
     int socket_send_buffer_size;
     int socket_receive_buffer_size;
+	proxy_address_t bind_address;
+	proxy_address_t client_address;
+	proxy_address_t proxy_address;
+	proxy_address_t server_address;
 };
 
 static proxy_config_t config;
@@ -55,6 +57,10 @@ bool proxy_init()
 		return false;
 
 	config.num_threads = 0;
+
+	config.num_slots_per_thread = 10;
+
+	config.slot_base_port = 50000;
 
 	config.max_packet_size = 1500;
 
@@ -449,25 +455,34 @@ bool proxy_address_equal( const proxy_address_t * a, const proxy_address_t * b )
 
 // ---------------------------------------------------------------------
 
-struct proxy_thread_data_t
+struct slot_thread_data_t
 {
 	int thread_number;
+	int slot_number;
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
 	// ...
+
+	// todo
+	// bool allocated
+	// client_address
 };
 
-static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_function( void * data )
+static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_function( void * data )
 {
-	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
+	slot_thread_data_t * thread_data = (slot_thread_data_t*) data;
 
-	printf( "thread %d started\n", thread_data->thread_number );
+	printf( "proxy thread %d slot thread %d started\n", thread_data->thread_number, thread_data->slot_number );
 
-    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+	proxy_address_t bind_address = config.bind_address;
+
+	bind_address.port = config.slot_base_port + thread_data->thread_number * config.num_slots_per_thread + thread_data->slot_number;
+
+    thread_data->socket = proxy_platform_socket_create( &bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
     if ( !thread_data->socket )
     {
-    	printf( "error: could not create socket\n" );
+    	printf( "error: could not create slot socket\n" );
     	exit(1);
     }
 
@@ -485,31 +500,63 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 		if ( packet_bytes == 0 )
 			continue;
 
-		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
+		// todo: do something with ze packet
+		(void) packet_bytes;
+		(void) buffer;
 	}
 
-	proxy_platform_socket_destroy( thread_data->socket );
+	printf( "proxy thread %d slot thread %d stopped\n", thread_data->thread_number, thread_data->slot_number );
 
-	printf( "thread %d stopped\n", thread_data->thread_number );	
+	proxy_platform_socket_destroy( thread_data->socket );
 
 	fflush( stdout );
 
     PROXY_PLATFORM_THREAD_RETURN();
 }
 
+// ---------------------------------------------------------------------
+
+struct proxy_thread_data_t
+{
+	int thread_number;
+	proxy_platform_thread_t * thread;
+	proxy_platform_socket_t * socket;
+	slot_thread_data_t * slot_thread_data;
+};
+
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
 {
 	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
 
-	printf( "thread %d started\n", thread_data->thread_number );
+	printf( "proxy thread %d started\n", thread_data->thread_number );
 
-    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+	// create slot threads
+
+	thread_data->slot_thread_data = (slot_thread_data_t*) malloc( sizeof(slot_thread_data_t*) * config.num_slots_per_thread );
+	memset( thread_data->slot_thread_data, 0, sizeof(slot_thread_data_t) * config.num_slots_per_thread );
+	for ( int i = 0; i < config.num_slots_per_thread; ++i )
+	{
+		thread_data->slot_thread_data[i].thread_number = thread_data->thread_number;
+		thread_data->slot_thread_data[i].slot_number = i;
+	    thread_data->slot_thread_data[i].thread = proxy_platform_thread_create( slot_thread_function, &thread_data->slot_thread_data[i] );
+	    if ( !thread_data->slot_thread_data[i].thread )
+	    {
+	        printf( "error: failed to create slot thread\n" );
+	        exit(1);
+	    }
+	}
+
+	// create socket for this proxy thread
+
+    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
     if ( !thread_data->socket )
     {
     	printf( "error: could not create socket\n" );
     	exit(1);
     }
+
+    // process received packets
 
 	while ( true )
 	{
@@ -540,9 +587,70 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		}
 	}
 
+	// shutdown proxy thread
+
 	proxy_platform_socket_destroy( thread_data->socket );
 
-	printf( "thread %d stopped\n", thread_data->thread_number );	
+	printf( "proxy thread %d stopped\n", thread_data->thread_number );	
+
+	for ( int i = 0; i < config.num_slots_per_thread; ++i )
+	{
+		proxy_platform_socket_close( thread_data->slot_thread_data[i].socket );
+	}
+
+	printf( "proxy thread %d joining slot threads\n", thread_data->thread_number );
+
+	for ( int i = 0; i < config.num_slots_per_thread; ++i )
+	{
+		proxy_platform_thread_join( thread_data->slot_thread_data[i].thread );
+	}
+    
+	printf( "proxy thread %d destroying slot threads\n", thread_data->thread_number );
+
+	for ( int i = 0; i < config.num_slots_per_thread; ++i )
+	{
+		proxy_platform_thread_destroy( thread_data->slot_thread_data[i].thread );
+	}
+
+	fflush( stdout );
+
+    PROXY_PLATFORM_THREAD_RETURN();
+}
+
+static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_function( void * data )
+{
+	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
+
+	printf( "server thread %d started\n", thread_data->thread_number );
+
+    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+
+    if ( !thread_data->socket )
+    {
+    	printf( "error: could not create socket\n" );
+    	exit(1);
+    }
+
+	while ( true )
+	{
+		uint8_t buffer[config.max_packet_size];
+
+		proxy_address_t from;
+
+		int packet_bytes = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer, config.max_packet_size );
+
+		if ( packet_bytes < 0 )
+			break;
+
+		if ( packet_bytes == 0 )
+			continue;
+
+		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
+	}
+
+	proxy_platform_socket_destroy( thread_data->socket );
+
+	printf( "server thread %d stopped\n", thread_data->thread_number );	
 
 	fflush( stdout );
 
@@ -590,6 +698,8 @@ int main( int argc, char * argv[] )
 			exit(1);
 		}
 
+		memset( thread_data[i], 0, sizeof(proxy_thread_data_t) );
+
 		thread_data[i]->thread_number = i;
 
 	    thread_data[i]->thread = proxy_platform_thread_create( server_mode ? server_thread_function : proxy_thread_function, thread_data[i] );
@@ -599,13 +709,16 @@ int main( int argc, char * argv[] )
 	        exit(1);
 	    }
 
-	    if ( !proxy_platform_thread_affinity( thread_data[i]->thread, i ) )
+	    if ( server_mode )
 	    {
-	    	printf( "error: failed to set thread affinity to core %d\n", i );
-	    	exit(1);
-	    }
+		    if ( !proxy_platform_thread_affinity( thread_data[i]->thread, i ) )
+		    {
+		    	printf( "error: failed to set thread affinity to core %d\n", i );
+		    	exit(1);
+		    }
 
-	    proxy_platform_thread_high_priority( thread_data[i]->thread );
+		    proxy_platform_thread_high_priority( thread_data[i]->thread );
+		}
 	}
 
 	while ( !quit )

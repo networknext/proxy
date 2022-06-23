@@ -1,71 +1,27 @@
 DONE
 
-	Implement basic throughput test in google cloud. How far can I push it?
+	No, there is totally a lot more work to do...
 
-	Seems that we can do around 3 * 1000 * 1000 = 3m packets per-second, @ 256 bytes average packet size.
+	The proxy can't work (yet), because it doesn't know which client to return the packet to.
 
-	We seem to overload around 0.7 gigabytes per-second. This is reasonable enough for now.
+	To fix this, there needs to be an array of worker sockets in the proxy, and a mapping from client address to slot (n slots per-thread, eg. 4000)
 
-	The limit seems to be more packets per-second, rather than bandwidth. Greater throughput can be obtained, with larger packet sizes.
+	Then the proxy can receive the packet on the socket corresponding to the slot, 
 
-	Upgrade client to use atomics.
+	Switch proxy to blocking sockets and don't pin cores or set high priority.
 
-	Extend packets sent to proxy to include a uint64 sequence number in the first 8 bytes.
-
-	Track packet loss via packet buffer, and print it out.
-
-	Now run the client and proxy in the cloud and verify we get zero packet loss at a baseline load.
-
-	Confirmed. Works with two clients, starts dropping packets with a third.
-
-	What's interesting is that if the proxy gets overloaded, reducing the load doesn't seem to fix it.
-
-	Clients get dropped packets until they are all reset. Seems weird. Shouldn't the dropped packets stop once load is reduced? Does the proxy get into a pathological oveloaded state?
-
-	Next step is to implement an actual server, and make the proxy "real" (eg. it always uploads packets for a client to a specific server).
-
-	Lock down the proxy so it has an assigned internal ip address.
-
-	Create a new server VM so it has an assigned internal IP address.
-
-	Setup the server VM so it is able to build and run proxy in release avx2.
-
-	Add configuration vars to proxy.cpp so we have the proxy and server addresses hardcoded in there.
-
-	Implement server mode when passing in "server" as argv[1]
-
-	Implement proxy mode (default).
-
-	Test server and proxy mode locally.
+	Leave server as is, high priority thread and pinned cores... it's simpler, and we can always test throughput on server vs. proxy by pointing the client directly at the server IP sans proxy.
 
 TODO
 
-	Now let's see if we can get zero packet loss with client <-> proxy <-> server.
+	Actually create the slot threads, owned by each thread. This way there is no contention for slots between threads.
 
-	if it doesn't work right away without tuning changes to the server, then we know the tuning is having an effect...
+	Port number should be 50000 + (thread_number*num_slots_per_thread) + slot
 
-	otherwise, if it works right away, the tuning isn't doing anything.
+	This gives us room for around ~10k slots maximum, which is perfectly fine.
 
-	---------------
+	Actually create the slot sockets.
 
+	Make sure the slot sockets get closed on thread shutdown, and make sure the slots actually shut down.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--------------------------
-
-	Create a bootstrap script for the client, so it can be setup as a mig and scaled up/down easily.
-
-	Explore alternative ways to receive and send packets, eg. sendmmsg, recvmmsg in Linux, to potentially reduce overhead.
+	Test everything is creating and shutting down cleanly.
