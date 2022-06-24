@@ -17,7 +17,7 @@ solution "proxy"
 	filter "platforms:*x64 or *avx or *avx2"
 		architecture "x86_64"
 
-project "proxy"
+project "next"
 	kind "StaticLib"
 	links { "sodium" }
 	files {
@@ -39,6 +39,17 @@ project "proxy"
 		"proxy.cpp",
 		"proxy_*.h",
 		"proxy_*.cpp"
+	}
+	filter "system:not windows"
+		links { "pthread" }
+	filter "system:macosx"
+		linkoptions { "-framework SystemConfiguration -framework CoreFoundation" }
+
+project "client"
+	kind "ConsoleApp"
+	links { "next", "sodium" }
+	files {
+		"client.cpp"
 	}
 	filter "system:not windows"
 		links { "pthread" }
