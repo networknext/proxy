@@ -4,6 +4,16 @@ DONE
 
 	Boom. That fixed it :)
 	
+	Load test at 1000 clients, 100 byte packets @ 100HZ. Works.
+
+	Load test at 4000 clients, 100 byte packets @ 100HZ. Works.
+
+	Load test at 4000 clients, 1200 byte packets @ 100HZ. ***FAIL***
+
+	Load test at 2000 clients, 1200 byte packets @ 100HZ. Works.
+
+	Moving forward with 2k clients.
+
 TODO	
 
-	// ...
+	Next step is to actually work out how to integrate the network next server.

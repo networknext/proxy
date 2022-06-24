@@ -700,16 +700,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	    }
 	}
 
-	// create socket for this proxy thread
-
-    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
-
-    if ( !thread_data->socket )
-    {
-    	printf( "error: could not create socket\n" );
-    	exit(1);
-    }
-
     // process received packets
 
     char string_buffer[1024];
@@ -846,14 +836,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 
 	printf( "server thread %d started\n", thread_data->thread_number );
 
-    thread_data->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
-
-    if ( !thread_data->socket )
-    {
-    	printf( "error: could not create socket\n" );
-    	exit(1);
-    }
-
     char string_buffer[1024];
 
     (void) string_buffer;
@@ -969,6 +951,27 @@ int main( int argc, char * argv[] )
 			thread_data[i]->slot_data[j].last_packet_receive_time = -1000000000.0;
 		}
 
+		if ( server_mode )
+		{
+		    thread_data[i]->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+
+		    if ( !thread_data[i]->socket )
+		    {
+		    	printf( "error: could not create socket\n" );
+		    	exit(1);
+		    }
+		}
+		else
+		{
+		    thread_data[i]->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+
+		    if ( !thread_data[i]->socket )
+		    {
+		    	printf( "error: could not create socket\n" );
+		    	exit(1);
+		    }
+		}
+
 	    thread_data[i]->thread = proxy_platform_thread_create( server_mode ? server_thread_function : proxy_thread_function, thread_data[i] );
 	    if ( !thread_data[i]->thread )
 	    {
@@ -994,8 +997,6 @@ int main( int argc, char * argv[] )
 	}
 
 	printf( "\nshutting down...\n" );
-
-	// todo: strictly speaking all sockets must be created outside the threads for this to work. fix
 
 	debug_printf( "closing sockets\n" );
 
