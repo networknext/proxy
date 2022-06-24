@@ -484,7 +484,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 	proxy_address_t bind_address = config.bind_address;
 
-	bind_address.port = 0; // let the system pick a port for the per-client slot proxy sockets
+	bind_address.port = 5000 + thread_data->thread_number * config.num_slots_per_thread + thread_data->slot_number; //0; // let the system pick a port for the per-client slot proxy sockets
 
     thread_data->socket = proxy_platform_socket_create( &bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
