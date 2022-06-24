@@ -750,7 +750,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 			{
 				// forward packet to server
 
-	  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
+	  			printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
                 thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
 			}
