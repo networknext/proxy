@@ -24,8 +24,26 @@ DONE
 
 	Fixed, and verified working.
 
-TODO
-
 	Why does the network next client always lose packet 1? Is there something actually going on here?
 
 	Debug why, and fix it :)
+
+	The client is definitely losing the first two packets. I think the client has a race condition before it is ready to receive packets (on the background thread). Maybe the first two packets are dropped because the receive thread isn't ready quickly enough to catch them (background thread starting up...) ?
+
+	Confirmed. It's a race on the client being ready with the receive thread.
+
+	We probably need a client ready concept...
+
+	Added ready concept. Wait until ready before sending any packets. Bingo. Zero packet loss.
+
+TODO
+	
+	------------
+
+	Next, setup a next thread, where the network next server runs (and has its own regular socket)
+
+	Verify the network next server is able to launch, run and generally be OK.
+
+	In particular, it needs to initialize with the sdk5 server backend in prod.
+
+	------------

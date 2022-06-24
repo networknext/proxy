@@ -6273,6 +6273,7 @@ struct next_client_command_report_session_t : public next_client_command_t
 #define NEXT_CLIENT_NOTIFY_UPGRADED                 1
 #define NEXT_CLIENT_NOTIFY_STATS_UPDATED            2
 #define NEXT_CLIENT_NOTIFY_MAGIC_UPDATED            3
+#define NEXT_CLIENT_NOTIFY_READY                    4
 
 struct next_client_notify_t
 {
@@ -6302,6 +6303,10 @@ struct next_client_notify_stats_updated_t : public next_client_notify_t
 struct next_client_notify_magic_updated_t : public next_client_notify_t
 {
     uint8_t current_magic[8];
+};
+
+struct next_client_notify_ready_t : public next_client_notify_t
+{
 };
 
 // ---------------------------------------------------------------
@@ -6612,6 +6617,14 @@ next_client_internal_t * next_client_internal_create( void * context, const char
 
     client->special_send_sequence = 1;
     client->internal_send_sequence = 1;
+
+    next_client_notify_ready_t * notify = (next_client_notify_ready_t*) next_malloc( client->context, sizeof(next_client_notify_ready_t) );
+    next_assert( notify );
+    notify->type = NEXT_CLIENT_NOTIFY_READY;
+    {
+        next_platform_mutex_guard( &client->notify_mutex );
+        next_queue_push( client->notify_queue, notify );
+    }
 
     return client;
 }
@@ -8265,6 +8278,7 @@ struct next_client_t
 
     void * context;
     int state;
+    bool ready;
     bool upgraded;
     bool fallback_to_direct;
     uint8_t open_session_sequence;
@@ -8473,6 +8487,7 @@ void next_client_close_session( next_client_t * client )
         next_queue_push( client->internal->command_queue, command );
     }
 
+    client->ready = false;
     client->upgraded = false;
     client->fallback_to_direct = false;
     client->session_id = 0;
@@ -8555,11 +8570,23 @@ void next_client_update( next_client_t * client )
             }
             break;
 
+            case NEXT_CLIENT_NOTIFY_READY:
+            {
+                client->ready = true;
+            }
+            break;
+
             default: break;
         }
 
         next_free( client->context, entry );
     }
+}
+
+NEXT_BOOL next_client_ready( next_client_t * client )
+{
+	next_assert( client );
+	return client->ready ? NEXT_TRUE : NEXT_FALSE;
 }
 
 void next_client_send_packet( next_client_t * client, const uint8_t * packet_data, int packet_bytes )

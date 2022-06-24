@@ -47,19 +47,19 @@ static uint64_t received_packets[1024];
 
 void client_packet_received( next_client_t * client, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
 {
-	// printf( "received %d byte packet\n", packet_bytes );
-
     (void) client; (void) context; (void) packet_data; (void) packet_bytes; (void) from;
 
 	if ( packet_bytes < 8 )
 	{
-		printf( "packet too small: %d\n", packet_bytes );
+		// printf( "packet too small: %d\n", packet_bytes );
 		return;
 	}
 
-	const uint8_t * p = packet_data + 1;
+	const uint8_t * p = packet_data;
 
 	uint64_t sequence = next_read_uint64( &p );
+
+    // printf( "client received packet %" PRId64 "\n", sequence );
 
 	received_packets[sequence%1024] = sequence;
 
@@ -73,6 +73,8 @@ void client_packet_received( next_client_t * client, void * context, const next_
 int main()
 {
     signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
+
+    memset( received_packets, 0xFF, sizeof(received_packets) );
     
  	next_quiet( true );
 
@@ -104,39 +106,42 @@ int main()
 
     double last_print_time = next_time();
 
+    next_sleep( 1.0 );
+
     while ( !quit )
     {
         next_client_update( client );
 
-        uint8_t * p = packet_data + 1;
-
-        next_write_uint64( &p, sequence );
-
-        next_assert( packet_data[0] == 0 );
-
-        next_client_send_packet( client, packet_data, sizeof(packet_data) );
-        
-        sequence++;
-        sent++;
-
-        if ( sequence >= 100 )
+        if ( next_client_ready( client ) )
         {
-        	int index = ( sequence - 100 ) % 1024;
-        	if ( received_packets[index] != sequence - 100 )
-        	{
-        		// printf( "lost packet %d\n", (int) ( sequence - 100 ) );
-        		lost++;
-        	}
-        }
+	        uint8_t * p = packet_data;
 
-        double current_time = next_time();
+	        next_write_uint64( &p, sequence );
 
-        if ( current_time - last_print_time > 5.0 )
-        {
-        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 "\n", sent, received, lost );
+	        next_client_send_packet( client, packet_data, sizeof(packet_data) );
+	        
+	        sequence++;
+	        sent++;
 
-        	last_print_time = current_time;
-        }
+	        if ( sequence >= 100 )
+	        {
+	        	int index = ( sequence - 100 ) % 1024;
+	        	if ( received_packets[index] != sequence - 100 )
+	        	{
+	        		// printf( "lost packet %" PRId64 "\n", sequence - 100 );
+	        		lost++;
+	        	}
+	        }
+
+	        double current_time = next_time();
+
+	        if ( current_time - last_print_time > 5.0 )
+	        {
+	        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 "\n", sent, received, lost );
+
+	        	last_print_time = current_time;
+	        }
+	    }
 
         next_sleep( 0.01 );
     }
