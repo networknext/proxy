@@ -14,7 +14,7 @@ import (
 	"encoding/binary"
 )
 
-const NumClients = 1000
+const NumClients = 4000
 const PacketsPerSecond = 100
 const PacketBytes = 100
 const BaseClientPort = 50000
