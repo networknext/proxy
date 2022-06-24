@@ -67,7 +67,7 @@ bool proxy_init()
 	config.num_slots_per_thread = 10;
 #endif
 
-	config.max_packet_size = 100; // 1500;
+	config.max_packet_size = 1500;
 
 	config.proxy_thread_data_bytes = 10 * 1024 * 1024;
 
