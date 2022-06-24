@@ -10,10 +10,22 @@ DONE
 
 	OK. I can test locally now.
 
-TODO
+	Network next client can connect to server directly, but doesn't work with passthrough.
+
+	Implemented sent, received and lost packet loss in client.cpp
 
 	The next step is to verify that I can test a network next client connecting to the proxy, and the passthrough works.
 
-	It should work because the client isn't getting upgraded and will only send passthrough packets.
+	Network Next SDK is discarding the packet because it's not from the server address.
 
-	Implement this and verify. The client should have the same packet structure and loss detection that the client.go has.
+	This means that we need to send packets to the client via one of the front-facing SO_REUSEPORT addresses, instead of the socket that we receive the packet from the server on.
+
+	We'll need to hash the client address and port, and use this to pick a threand number, and send on that socket.	
+
+	Fixed, and verified working.
+
+TODO
+
+	Why does the network next client always lose packet 1? Is there something actually going on here?
+
+	Debug why, and fix it :)

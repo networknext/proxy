@@ -600,6 +600,7 @@ struct slot_thread_data_t
 	int slot_number;
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
+	proxy_platform_socket_t ** thread_sockets;
 
 	// protected by mutex
 	proxy_platform_mutex_t mutex;
@@ -613,13 +614,18 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 	debug_printf( "proxy thread %d slot thread %d started\n", thread_data->thread_number, thread_data->slot_number );
 
+	for ( int i = 0; i < config.num_threads; ++i )
+	{
+		assert( thread_data->thread_sockets[i] != NULL );
+	}
+
     char string_buffer[1024];
     
     (void) string_buffer;
 
 	while ( true )
 	{
-		uint8_t buffer[config.max_packet_size];
+		uint8_t buffer[1 + config.max_packet_size];
 
 		proxy_address_t from;
 
@@ -641,11 +647,13 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 			// forward packet to client
             debug_printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
             buffer[0] = 0;
-			proxy_platform_socket_send_packet( thread_data->socket, &client_address, buffer, packet_bytes + 1 );
+			uint64_t hash = hash_key( &client_address );
+			int index = hash % config.num_threads;
+			proxy_platform_socket_send_packet( thread_data->thread_sockets[index], &client_address, buffer, packet_bytes + 1 );
 		}
         else
         {
-            printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
+            debug_printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
         }
 	}
 
@@ -673,6 +681,7 @@ struct proxy_thread_data_t
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
 	slot_thread_data_t ** slot_thread_data;
+	proxy_platform_socket_t ** thread_sockets;
 };
 
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
@@ -680,6 +689,11 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
 
 	printf( "proxy thread %d started\n", thread_data->thread_number );
+
+	for ( int i = 0; i < config.num_threads; ++i )
+	{
+		assert( thread_data->thread_sockets[i] != NULL );
+	}
 
 	// create slot threads
 
@@ -696,6 +710,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		}
 
 		thread_data->slot_thread_data[i]->thread_number = thread_data->thread_number;
+		thread_data->slot_thread_data[i]->thread_sockets = thread_data->thread_sockets;
 		thread_data->slot_thread_data[i]->slot_number = i;
 
 		proxy_platform_mutex_create( &thread_data->slot_thread_data[i]->mutex );
@@ -760,7 +775,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 				if ( allocated )
 				{
 					// forward packet to server
-
 		  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 					proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer + 1, packet_bytes - 1 );
 	                thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
@@ -815,12 +829,16 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	            assert( slot < config.num_slots_per_thread );
 
 	  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
+				
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer + 1, packet_bytes - 1 );
 	  		}
 		}
 		else
 		{
 			// other packet types: drop for now
+
+			// todo
+			printf( "not passthrough packet\n" );
 		}
 	}
 
@@ -961,8 +979,10 @@ int main( int argc, char * argv[] )
 
     proxy_thread_data_t * thread_data[config.num_threads];
 
-	for ( int i = 0; i < config.num_threads; i++ )
-	{
+    proxy_platform_socket_t * thread_sockets[config.num_threads];
+
+    for ( int i = 0;i < config.num_threads; ++i )
+    {
 		thread_data[i] = (proxy_thread_data_t*) calloc( 1, config.proxy_thread_data_bytes );
 		if ( !thread_data[i] )
 		{
@@ -982,9 +1002,9 @@ int main( int argc, char * argv[] )
 
 		if ( server_mode )
 		{
-		    thread_data[i]->socket = proxy_platform_socket_create( &config.server_bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+		    thread_sockets[i] = proxy_platform_socket_create( &config.server_bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
-		    if ( !thread_data[i]->socket )
+		    if ( !thread_sockets[i] )
 		    {
 		    	printf( "error: could not create socket\n" );
 		    	exit(1);
@@ -992,16 +1012,24 @@ int main( int argc, char * argv[] )
 		}
 		else
 		{
-		    thread_data[i]->socket = proxy_platform_socket_create( &config.proxy_bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+		    thread_sockets[i] = proxy_platform_socket_create( &config.proxy_bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
-		    if ( !thread_data[i]->socket )
+		    if ( !thread_sockets[i] )
 		    {
 		    	printf( "error: could not create socket\n" );
 		    	exit(1);
 		    }
 		}
+    }
+
+	for ( int i = 0; i < config.num_threads; ++i )
+	{
+		thread_data[i]->socket = thread_sockets[i];
+
+		thread_data[i]->thread_sockets = thread_sockets;
 
 	    thread_data[i]->thread = proxy_platform_thread_create( server_mode ? server_thread_function : proxy_thread_function, thread_data[i] );
+
 	    if ( !thread_data[i]->thread )
 	    {
 	        printf( "error: failed to create thread\n" );
