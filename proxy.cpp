@@ -26,6 +26,16 @@
 #include <string.h>
 #include <signal.h>
 
+#if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
+const char * server_address = "10.128.0.7:40000";		// google cloud
+const int proxy_port = 40000;
+const int server_port = 40000;
+#else
+const char * server_address = "127.0.0.1:50000";		// local testing
+const int proxy_port = 40000;
+const int server_port = 50000;
+#endif
+
 //#define debug_printf printf
 #define debug_printf(...) ((void)0)
 
@@ -48,7 +58,9 @@ struct proxy_config_t
     int slot_timeout_seconds;
     int socket_send_buffer_size;
     int socket_receive_buffer_size;
-	proxy_address_t bind_address;
+    proxy_address_t slot_bind_address;
+	proxy_address_t server_bind_address;
+	proxy_address_t proxy_bind_address;
 	proxy_address_t server_address;
 };
 
@@ -75,11 +87,18 @@ bool proxy_init()
 
 	config.slot_timeout_seconds = 60;
 
-	memset( &config.bind_address, 0, sizeof(proxy_address_t) );
-	config.bind_address.type = PROXY_ADDRESS_IPV4;
-	config.bind_address.port = 40000;
+	memset( &config.slot_bind_address, 0, sizeof(proxy_address_t) );
+	config.slot_bind_address.type = PROXY_ADDRESS_IPV4;
 
-	proxy_address_parse( &config.server_address, "10.128.0.7:40000" );
+	memset( &config.proxy_bind_address, 0, sizeof(proxy_address_t) );
+	config.proxy_bind_address.type = PROXY_ADDRESS_IPV4;
+	config.proxy_bind_address.port = proxy_port;
+
+	memset( &config.server_bind_address, 0, sizeof(proxy_address_t) );
+	config.server_bind_address.type = PROXY_ADDRESS_IPV4;
+	config.server_bind_address.port = server_port;
+
+	proxy_address_parse( &config.server_address, server_address );
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.socket_send_buffer_size = 10000000;
@@ -626,7 +645,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		}
         else
         {
-            debug_printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
+            printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
         }
 	}
 
@@ -681,7 +700,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 		proxy_platform_mutex_create( &thread_data->slot_thread_data[i]->mutex );
 
-		proxy_address_t bind_address = config.bind_address;
+		proxy_address_t bind_address = config.slot_bind_address;
 
 		bind_address.port = 5000 + thread_data->thread_number * config.num_slots_per_thread + i;
 
@@ -963,7 +982,7 @@ int main( int argc, char * argv[] )
 
 		if ( server_mode )
 		{
-		    thread_data[i]->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+		    thread_data[i]->socket = proxy_platform_socket_create( &config.server_bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
 		    if ( !thread_data[i]->socket )
 		    {
@@ -973,7 +992,7 @@ int main( int argc, char * argv[] )
 		}
 		else
 		{
-		    thread_data[i]->socket = proxy_platform_socket_create( &config.bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+		    thread_data[i]->socket = proxy_platform_socket_create( &config.proxy_bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
 		    if ( !thread_data[i]->socket )
 		    {

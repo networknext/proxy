@@ -1,0 +1,58 @@
+STRATEGY
+
+	The network next server must run on a single thread. It is out of scope (year+ of work), to make this distributed and multi-threaded.
+
+	First, I can implement all the stateless packets in the current setup, for example:
+
+		passthrough
+		direct ping / pong
+
+	This takes 90-95% of the traffic and passes it through the fast path.
+
+	I can then use the existing client.go and modify it to prefix packets with 0 byte (passthrough).
+
+	Then upgrade the proxy such that it strips off the zero byte, and puts the zero byte back on when forwarding fast-path passthrough packets back to the client.
+
+	This way I can generate load, without needing 4000 real network next clients.
+
+	-------------
+
+	After this, I can implement all the stateless packets, eg. direct ping/pong responses.
+
+	Then I can also implement a real direct client, and verify that it is able to talk to the server via the proxy.
+
+	-------------
+
+	After this I can implement the network next thread, and see if I can get the direct client upgraded.
+
+	Initially, the direct client will send upgraded direct packets across non-fast path.
+
+	This is a good test case to see that the shunting for non-stateless packets through to the next thread is working.
+
+	Get this network next client working, even though it will be slow.
+
+	-------------
+
+	After this network next client is working, add a setting to the client to force passthrough direct.
+
+	Now the goal is to get the client upgraded, but to continue to send packets through the passthrough direct.
+
+	This is necessary to get the throughput required for all the direct packets. We will however, lose the measurement of real RTT and real jitter and real out of order packets. 
+
+	This is a necessary trade off.
+
+	-------------
+
+	Unless something unexpected comes up, the work should be complete now.
+
+	Now setup a test harness where there are n real clients, for example, 1000 players, 10% accel = 100 clients.
+
+	These clients can probably run on a single powerful instance, to make setup easy.
+
+	Work to setup sdk5 so that it forces the clients to be accelerated and go through a relay.
+
+	-------------
+
+	Work is complete when 100 clients connect via next, with zero packet loss, while 2000 passthrough client are active with zero packet loss.
+
+	-------------

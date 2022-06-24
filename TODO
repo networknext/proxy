@@ -1,5 +1,11 @@
 DONE
 
+	Setup the proxy so it strips zero byte packets from client -> server, and adds zero byte packets from server -> client.
+
 TODO	
 
-	Setup the proxy so it strips zero byte packets from client -> server, and adds zero byte packets from server -> client.
+	Iteration time in google cloud is slow. 
+
+	Now that we've passed load testing, switch to local development until the final load test.
+
+	Verify that passthrough packets work locally.
