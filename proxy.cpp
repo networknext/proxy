@@ -966,7 +966,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 
 struct next_thread_data_t
 {
-	// ...
+	next_server_t * next_server;
 };
 
 void next_packet_received( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
@@ -996,46 +996,22 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC next_thread_fun
 {
 	next_thread_data_t * thread_data = (next_thread_data_t*) data;
 
-	// todo
-	(void) thread_data;
+	next_assert( thread_data );
+	next_assert( thread_data->next_server );
 
 	printf( "next thread started\n" );
 
-	// todo: we really do actually want to create the next server in the main thread, along with all other sockets
-
-	next_quiet( true );
-
-    next_config_t config;
-    next_default_config( &config );
-    strncpy( config.server_backend_hostname, next_backend_hostname, sizeof(config.server_backend_hostname) - 1 );
-    strncpy( config.customer_private_key, next_customer_private_key, sizeof(config.customer_private_key) - 1 );
-
-    if ( next_init( NULL, &config ) != NEXT_OK )
-    {
-        printf( "error: could not initialize network next\n" );
-        exit(1);
-    }
-
-    next_server_t * server = next_server_create( NULL, server_address, next_bind_address, next_datacenter, next_packet_received, NULL );
-    if ( server == NULL )
-    {
-        printf( "error: failed to create next server\n" );
-        exit(1);
-    }
-    
     while ( !quit )
     {
-        next_server_update( server );
+        next_server_update( thread_data->next_server );
 
         next_sleep( 1.0 / 60.0 );
     }
 
-    next_server_flush( server );
+    next_server_flush( thread_data->next_server );
     
-    next_server_destroy( server );
+    next_server_destroy( thread_data->next_server );
     
-    next_term();
-
 	printf( "next thread stopped\n" );
 
 	fflush( stdout );
@@ -1068,7 +1044,7 @@ int main( int argc, char * argv[] )
 		printf( "network next proxy\n" );    	
     }
 
-    // todo: probably need to create all sockets for the slots here too...
+    // todo: need to create all sockets for the slots here too
 
     // create all thread sockets prior to actually creating threads, to avoid race conditions
 
@@ -1117,6 +1093,28 @@ int main( int argc, char * argv[] )
 		}
     }
 
+    // create network next server (manages its own internal socket)
+
+	next_quiet( true );
+
+    next_config_t next_config;
+    next_default_config( &next_config );
+    strncpy( next_config.server_backend_hostname, next_backend_hostname, sizeof(next_config.server_backend_hostname) - 1 );
+    strncpy( next_config.customer_private_key, next_customer_private_key, sizeof(next_config.customer_private_key) - 1 );
+
+    if ( next_init( NULL, &next_config ) != NEXT_OK )
+    {
+        printf( "error: could not initialize network next\n" );
+        exit(1);
+    }
+
+    next_server_t * next_server = next_server_create( NULL, next_public_address, next_bind_address, next_datacenter, next_packet_received, NULL );
+    if ( next_server == NULL )
+    {
+        printf( "error: failed to create next server\n" );
+        exit(1);
+    }
+
     // create proxy|server threads
 
 	for ( int i = 0; i < config.num_threads; ++i )
@@ -1147,10 +1145,11 @@ int main( int argc, char * argv[] )
 
 	// create next thread
 
-	printf( "before create next thread\n" );
-	fflush( stdout );
-
 	next_thread_data_t * next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
+
+	next_thread_data->next_server = next_server;
+
+	// todo: next thread is going to need to know about slot sockets and thread sockets
 
     proxy_platform_thread_t * next_thread = proxy_platform_thread_create( next_thread_function, next_thread_data );
 
@@ -1201,9 +1200,11 @@ int main( int argc, char * argv[] )
 	proxy_platform_thread_destroy( next_thread );
 	free( next_thread_data );
 
-	printf( "done.\n" );	
+	next_term();
 
     proxy_term();
+
+	printf( "done.\n" );	
 
     fflush( stdout );
 

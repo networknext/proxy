@@ -1,48 +1,13 @@
 DONE
 
-	Setup the proxy so it strips zero byte packets from client -> server, and adds zero byte packets from server -> client.
+	Next, setup a next thread, where the network next server runs (and has its own regular socket)
 
-	Iteration time in google cloud is slow. 
-
-	Now that we've passed load testing, switch to local development until the final load test.
-
-	Verify that passthrough packets work locally.
-
-	OK. I can test locally now.
-
-	Network next client can connect to server directly, but doesn't work with passthrough.
-
-	Implemented sent, received and lost packet loss in client.cpp
-
-	The next step is to verify that I can test a network next client connecting to the proxy, and the passthrough works.
-
-	Network Next SDK is discarding the packet because it's not from the server address.
-
-	This means that we need to send packets to the client via one of the front-facing SO_REUSEPORT addresses, instead of the socket that we receive the packet from the server on.
-
-	We'll need to hash the client address and port, and use this to pick a threand number, and send on that socket.	
-
-	Fixed, and verified working.
-
-	Why does the network next client always lose packet 1? Is there something actually going on here?
-
-	Debug why, and fix it :)
-
-	The client is definitely losing the first two packets. I think the client has a race condition before it is ready to receive packets (on the background thread). Maybe the first two packets are dropped because the receive thread isn't ready quickly enough to catch them (background thread starting up...) ?
-
-	Confirmed. It's a race on the client being ready with the receive thread.
-
-	We probably need a client ready concept...
-
-	Added ready concept. Wait until ready before sending any packets. Bingo. Zero packet loss.
+	Verify the network next server is able to launch, run and generally be OK.
 
 TODO
 	
 	------------
 
-	Next, setup a next thread, where the network next server runs (and has its own regular socket)
-
-	Verify the network next server is able to launch, run and generally be OK.
 
 	In particular, it needs to initialize with the sdk5 server backend in prod.
 
