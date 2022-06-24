@@ -1,5 +1,9 @@
 DONE
 
+	There is a race condition creating the socket for the thread. Socket needs to be created prior to thread creation.
+
+	Boom. That fixed it :)
+	
 TODO	
 
-	There is a race condition creating the socket for the thread. Socket needs to be created prior to thread creation.
+	// ...

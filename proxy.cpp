@@ -59,8 +59,7 @@ bool proxy_init()
 	if ( !proxy_platform_init() )
 		return false;
 
-	// todo: temp one thread only
-	config.num_threads = 1;
+	config.num_threads = 0;
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.num_slots_per_thread = 1000;
@@ -626,9 +625,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		}
         else
         {
-            // todo: just in case            
-            printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
-            assert( false );
+            debug_printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
         }
 	}
 
@@ -750,15 +747,13 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 			{
 				// forward packet to server
 
-	  			// printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
+	  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
                 thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
 			}
 			else
 			{
-                // todo: just in case
-  				printf( "proxy thread %d dropped packet because slot %d is not allocated?\n", thread_data->thread_number, slot );
-  				assert( false );
+  				debug_printf( "proxy thread %d dropped packet because slot %d is not allocated?\n", thread_data->thread_number, slot );
 			}
   		}
   		else
@@ -777,7 +772,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
   				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
   				{
-	  				printf( "new client %s in thread %d slot %d\n", proxy_address_to_string( &from, string_buffer ), thread_data->thread_number, i );
+	  				printf( "thread %d slot %d has new client %s\n", thread_data->thread_number, i, proxy_address_to_string( &from, string_buffer ) );
   					
   					slot = i;
 
@@ -804,8 +799,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
   			if ( slot < 0 )
   			{
-                // todo: just in case
-  				printf( "proxy thread %d dropped packet. no client slot found for address %s\n", thread_data->thread_number, proxy_address_to_string( &from, string_buffer ) );
+  				debug_printf( "proxy thread %d dropped packet. no client slot found for address %s\n", thread_data->thread_number, proxy_address_to_string( &from, string_buffer ) );
   				continue;
   			}
 
@@ -1008,6 +1002,8 @@ int main( int argc, char * argv[] )
 	}
 
 	printf( "\nshutting down...\n" );
+
+	// todo: strictly speaking all sockets must be created outside the threads for this to work. fix
 
 	debug_printf( "closing sockets\n" );
 
