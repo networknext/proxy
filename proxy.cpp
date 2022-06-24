@@ -25,6 +25,13 @@
 #include <stdarg.h>
 #include <string.h>
 #include <signal.h>
+#include "next.h"
+
+const char * next_bind_address = "0.0.0.0:60000";
+const char * next_public_address = "127.0.0.1:60000";
+const char * next_datacenter = "local";
+const char * next_backend_hostname = "prod.spacecats.net";
+const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c9Dhwr4ZaTkEWyX2Li5Ph/UFrw8QS8hAD9SQZkuVP6x14tEcqxWppmrvbdn";
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 const char * server_address = "10.128.0.7:40000";		// google cloud
@@ -38,6 +45,13 @@ const int server_port = 50000;
 
 //#define debug_printf printf
 #define debug_printf(...) ((void)0)
+
+static volatile int quit = 0;
+
+void interrupt_handler( int signal )
+{
+    (void) signal; quit = 1;
+}
 
 // ---------------------------------------------------------------------
 
@@ -55,6 +69,7 @@ struct proxy_config_t
 	int max_packet_size;
 	int proxy_thread_data_bytes;
 	int slot_thread_data_bytes;
+	int next_thread_data_bytes;	
     int slot_timeout_seconds;
     int socket_send_buffer_size;
     int socket_receive_buffer_size;
@@ -84,6 +99,8 @@ bool proxy_init()
 	config.proxy_thread_data_bytes = 10 * 1024 * 1024;
 
 	config.slot_thread_data_bytes = 1 * 1024 * 1024;
+
+	config.slot_thread_data_bytes = 10 * 1024 * 1024;
 
 	config.slot_timeout_seconds = 60;
 
@@ -592,6 +609,34 @@ int hash_table_get( hash_table_t * table, const proxy_address_t * key )
     return -1;
 }
 
+void test_hash_table()
+{
+	hash_table_t * hash_table = hash_table_create();
+
+	const int NumAddresses = 100;
+
+	proxy_address_t address[NumAddresses];
+
+	for ( int i = 0; i < NumAddresses; ++i ) 
+	{
+		char buffer[1024];
+		sprintf( buffer, "127.0.0.1:%d", 50000 + i );
+		proxy_address_parse( &address[i], buffer );
+	}
+
+	for ( int i = 0; i < NumAddresses; ++i ) 
+	{
+		hash_table_insert( hash_table, &address[i], i );
+	}
+
+	for ( int i = 0; i < NumAddresses; ++i )
+	{
+		assert( hash_table_get( hash_table, &address[i] ) == i );
+	}
+
+	hash_table_destroy( hash_table );
+}
+
 // ---------------------------------------------------------------------
 
 struct slot_thread_data_t
@@ -877,6 +922,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
     PROXY_PLATFORM_THREAD_RETURN();
 }
 
+// --------------------------------------------------------------------------------
+
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_function( void * data )
 {
 	proxy_thread_data_t * thread_data = (proxy_thread_data_t*) data;
@@ -917,40 +964,86 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 
 // ---------------------------------------------------------------------
 
-static volatile int quit = 0;
-
-void interrupt_handler( int signal )
+struct next_thread_data_t
 {
-    (void) signal; quit = 1;
+	// ...
+};
+
+void next_packet_received( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
+{
+    (void) server;
+    (void) context;
+    (void) from;
+    (void) packet_data;
+    (void) packet_bytes;
+
+    // todo
+
+    /*
+    next_server_send_packet( server, from, packet_data, packet_bytes );
+
+    // next_printf( NEXT_LOG_LEVEL_INFO, "server received packet from client (%d bytes)", packet_bytes );
+
+    if ( next_server_ready( server ) && !next_server_session_upgraded( server, from ) )
+    {
+        const char * user_id_string = "12345";
+        next_server_upgrade_session( server, from, user_id_string );
+    }
+    */
 }
 
-void test_hash_table()
+static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC next_thread_function( void * data )
 {
-	hash_table_t * hash_table = hash_table_create();
+	next_thread_data_t * thread_data = (next_thread_data_t*) data;
 
-	const int NumAddresses = 100;
+	// todo
+	(void) thread_data;
 
-	proxy_address_t address[NumAddresses];
+	printf( "next thread started\n" );
 
-	for ( int i = 0; i < NumAddresses; ++i ) 
-	{
-		char buffer[1024];
-		sprintf( buffer, "127.0.0.1:%d", 50000 + i );
-		proxy_address_parse( &address[i], buffer );
-	}
+	// todo: we really do actually want to create the next server in the main thread, along with all other sockets
 
-	for ( int i = 0; i < NumAddresses; ++i ) 
-	{
-		hash_table_insert( hash_table, &address[i], i );
-	}
+	next_quiet( true );
 
-	for ( int i = 0; i < NumAddresses; ++i )
-	{
-		assert( hash_table_get( hash_table, &address[i] ) == i );
-	}
+    next_config_t config;
+    next_default_config( &config );
+    strncpy( config.server_backend_hostname, next_backend_hostname, sizeof(config.server_backend_hostname) - 1 );
+    strncpy( config.customer_private_key, next_customer_private_key, sizeof(config.customer_private_key) - 1 );
 
-	hash_table_destroy( hash_table );
+    if ( next_init( NULL, &config ) != NEXT_OK )
+    {
+        printf( "error: could not initialize network next\n" );
+        exit(1);
+    }
+
+    next_server_t * server = next_server_create( NULL, server_address, next_bind_address, next_datacenter, next_packet_received, NULL );
+    if ( server == NULL )
+    {
+        printf( "error: failed to create next server\n" );
+        exit(1);
+    }
+    
+    while ( !quit )
+    {
+        next_server_update( server );
+
+        next_sleep( 1.0 / 60.0 );
+    }
+
+    next_server_flush( server );
+    
+    next_server_destroy( server );
+    
+    next_term();
+
+	printf( "next thread stopped\n" );
+
+	fflush( stdout );
+
+    PROXY_PLATFORM_THREAD_RETURN();
 }
+
+// ---------------------------------------------------------------------
 
 int main( int argc, char * argv[] )
 {
@@ -964,8 +1057,6 @@ int main( int argc, char * argv[] )
 
     test_hash_table();
 
-	// ---------------------------
-
     const bool server_mode = ( argc == 2 ) && strcmp( argv[1], "server" ) == 0;
 
     if ( server_mode )
@@ -976,6 +1067,10 @@ int main( int argc, char * argv[] )
     {
 		printf( "network next proxy\n" );    	
     }
+
+    // todo: probably need to create all sockets for the slots here too...
+
+    // create all thread sockets prior to actually creating threads, to avoid race conditions
 
     proxy_thread_data_t * thread_data[config.num_threads];
 
@@ -1022,6 +1117,8 @@ int main( int argc, char * argv[] )
 		}
     }
 
+    // create proxy|server threads
+
 	for ( int i = 0; i < config.num_threads; ++i )
 	{
 		thread_data[i]->socket = thread_sockets[i];
@@ -1048,10 +1145,29 @@ int main( int argc, char * argv[] )
 		}
 	}
 
+	// create next thread
+
+	printf( "before create next thread\n" );
+	fflush( stdout );
+
+	next_thread_data_t * next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
+
+    proxy_platform_thread_t * next_thread = proxy_platform_thread_create( next_thread_function, next_thread_data );
+
+    if ( !next_thread_data )
+    {
+        printf( "error: failed to create thread\n" );
+        exit(1);
+    }
+
+	// wait for CTRL-C
+
 	while ( !quit )
 	{
 		proxy_sleep( 1.0 );
 	}
+
+	// shut down
 
 	printf( "\nshutting down...\n" );
 
@@ -1068,6 +1184,8 @@ int main( int argc, char * argv[] )
 	{
 		proxy_platform_thread_join( thread_data[i]->thread );
 	}
+
+	proxy_platform_thread_join( next_thread );
     
 	debug_printf( "destroying threads\n" );
 
@@ -1079,6 +1197,9 @@ int main( int argc, char * argv[] )
 		free( thread_data[i] );
 		thread_data[i] = NULL;
 	}
+
+	proxy_platform_thread_destroy( next_thread );
+	free( next_thread_data );
 
 	printf( "done.\n" );	
 

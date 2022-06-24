@@ -33,7 +33,7 @@ project "next"
 
 project "proxy"
 	kind "ConsoleApp"
-	links { "sodium" }
+	links { "sodium", "next" }
 	files {
 		"proxy.h",
 		"proxy.cpp",
