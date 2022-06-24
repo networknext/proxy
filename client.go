@@ -98,7 +98,9 @@ func main() {
 				    for {
 				        select {
 				        case <-ticker.C:
-			        		binary.LittleEndian.PutUint64(writePacketData[:8], writeSequence)
+				        	// passthrough packet
+				        	writePacketData[0] = 0
+			        		binary.LittleEndian.PutUint64(writePacketData[1:9], writeSequence)
 							if _, err := conn.WriteToUDP(writePacketData, serverIP); err == nil {
 								if writeSequence > 100 {
 									oldSequence := writeSequence - 100
@@ -127,10 +129,13 @@ func main() {
 					for {
 						readPacketBytes, _, err := conn.ReadFromUDP(readPacketData)
 						if err == nil && readPacketBytes == PacketBytes {
-							readSequence := binary.LittleEndian.Uint64(readPacketData[:8])
-							index := readSequence % PacketBufferSize
-							atomic.StoreUint64(&receivedPackets[index], readSequence)
-							atomic.AddUint64(&threadPacketReceived[thread], 1)
+							if readPacketData[0] == 0 {
+								// passthrough packet
+								readSequence := binary.LittleEndian.Uint64(readPacketData[1:9])
+								index := readSequence % PacketBufferSize
+								atomic.StoreUint64(&receivedPackets[index], readSequence)
+								atomic.AddUint64(&threadPacketReceived[thread], 1)
+							}
 						}
 					}
 

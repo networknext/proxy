@@ -604,7 +604,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 		proxy_address_t from;
 
-		int packet_bytes = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer, config.max_packet_size );
+		int packet_bytes = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer + 1, config.max_packet_size );
 
 		if ( packet_bytes < 0 )
 			break;
@@ -621,7 +621,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		{
 			// forward packet to client
             debug_printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
-			proxy_platform_socket_send_packet( thread_data->socket, &client_address, buffer, packet_bytes );
+            buffer[0] = 0;
+			proxy_platform_socket_send_packet( thread_data->socket, &client_address, buffer, packet_bytes + 1 );
 		}
         else
         {
@@ -720,79 +721,88 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		if ( packet_bytes == 0 )
 			continue;
 
-		int slot = hash_table_get( thread_data->hash_table, &from );
+		if ( buffer[0] == 0 )
+		{
+			// passthrough packet
 
-		if ( slot != -1 )
-  		{
-  			// found existing slot for client
-  			
-  			assert( slot >= 0 );
-  			assert( slot < config.num_slots_per_thread );
+			int slot = hash_table_get( thread_data->hash_table, &from );
 
-			proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
-			bool allocated = thread_data->slot_thread_data[slot]->allocated;
-			proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
+			if ( slot != -1 )
+	  		{
+	  			// found existing slot for client
+	  			
+	  			assert( slot >= 0 );
+	  			assert( slot < config.num_slots_per_thread );
 
-			if ( allocated )
-			{
+				proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
+				bool allocated = thread_data->slot_thread_data[slot]->allocated;
+				proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
+
+				if ( allocated )
+				{
+					// forward packet to server
+
+		  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
+					proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer + 1, packet_bytes - 1 );
+	                thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
+				}
+				else
+				{
+	  				debug_printf( "proxy thread %d dropped packet because slot %d is not allocated?\n", thread_data->thread_number, slot );
+				}
+	  		}
+	  		else
+	  		{
+	  			// new client. add to slot if possible
+
+	  			int slot = -1;
+
+	  			for ( int i = 0; i < config.num_slots_per_thread; ++i )
+	  			{
+	                double current_time = proxy_time();
+
+	  				double last_packet_receive_time = thread_data->slot_data[i].last_packet_receive_time;
+
+	  				double time_since_last_packet_receive = current_time - last_packet_receive_time;
+
+	  				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
+	  				{
+		  				printf( "thread %d slot %d has new client %s\n", thread_data->thread_number, i, proxy_address_to_string( &from, string_buffer ) );
+	  					
+	  					slot = i;
+
+						proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
+						thread_data->slot_thread_data[slot]->allocated = true;
+						thread_data->slot_thread_data[slot]->client_address = from;
+						proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
+
+						hash_table_insert( thread_data->hash_table, &from, slot );
+
+						thread_data->slot_data[slot].last_packet_receive_time = current_time;
+
+						break;
+	  				}
+	  			}
+
+	  			if ( slot < 0 )
+	  			{
+	  				debug_printf( "proxy thread %d dropped packet. no client slot found for address %s\n", thread_data->thread_number, proxy_address_to_string( &from, string_buffer ) );
+	  				continue;
+	  			}
+
 				// forward packet to server
 
+	            assert( slot >= 0 );
+	            assert( slot < config.num_slots_per_thread );
+
 	  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
-				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
-                thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
-			}
-			else
-			{
-  				debug_printf( "proxy thread %d dropped packet because slot %d is not allocated?\n", thread_data->thread_number, slot );
-			}
-  		}
-  		else
-  		{
-  			// new client. add to slot if possible
-
-  			int slot = -1;
-
-  			for ( int i = 0; i < config.num_slots_per_thread; ++i )
-  			{
-                double current_time = proxy_time();
-
-  				double last_packet_receive_time = thread_data->slot_data[i].last_packet_receive_time;
-
-  				double time_since_last_packet_receive = current_time - last_packet_receive_time;
-
-  				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
-  				{
-	  				printf( "thread %d slot %d has new client %s\n", thread_data->thread_number, i, proxy_address_to_string( &from, string_buffer ) );
-  					
-  					slot = i;
-
-					proxy_platform_mutex_acquire( &thread_data->slot_thread_data[slot]->mutex );
-					thread_data->slot_thread_data[slot]->allocated = true;
-					thread_data->slot_thread_data[slot]->client_address = from;
-					proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
-
-					hash_table_insert( thread_data->hash_table, &from, slot );
-
-					thread_data->slot_data[slot].last_packet_receive_time = current_time;
-
-					break;
-  				}
-  			}
-
-  			if ( slot < 0 )
-  			{
-  				debug_printf( "proxy thread %d dropped packet. no client slot found for address %s\n", thread_data->thread_number, proxy_address_to_string( &from, string_buffer ) );
-  				continue;
-  			}
-
-			// forward packet to server
-
-            assert( slot >= 0 );
-            assert( slot < config.num_slots_per_thread );
-
-  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
-			proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer, packet_bytes );
-  		}
+				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer + 1, packet_bytes - 1 );
+	  		}
+		}
+		else
+		{
+			// other packet types: drop for now
+		}
 	}
 
 	// shutdown
