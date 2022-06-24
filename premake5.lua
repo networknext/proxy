@@ -18,6 +18,20 @@ solution "proxy"
 		architecture "x86_64"
 
 project "proxy"
+	kind "StaticLib"
+	links { "sodium" }
+	files {
+		"next.h",
+		"next.cpp",
+		"next_*.h",
+		"next_*.cpp"
+	}
+	filter "system:not windows"
+		links { "pthread" }
+	filter "system:macosx"
+		linkoptions { "-framework SystemConfiguration -framework CoreFoundation" }
+
+project "proxy"
 	kind "ConsoleApp"
 	links { "sodium" }
 	files {
