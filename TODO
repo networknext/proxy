@@ -2,10 +2,18 @@ DONE
 
 	Setup the proxy so it strips zero byte packets from client -> server, and adds zero byte packets from server -> client.
 
-TODO	
-
 	Iteration time in google cloud is slow. 
 
 	Now that we've passed load testing, switch to local development until the final load test.
 
 	Verify that passthrough packets work locally.
+
+	OK. I can test locally now.
+
+TODO
+
+	The next step is to verify that I can test a network next client connecting to the proxy, and the passthrough works.
+
+	It should work because the client isn't getting upgraded and will only send passthrough packets.
+
+	Implement this and verify. The client should have the same packet structure and loss detection that the client.go has.
