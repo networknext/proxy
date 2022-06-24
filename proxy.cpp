@@ -783,14 +783,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 					hash_table_insert( thread_data->hash_table, &from, slot );
 
-					int inserted_slot = hash_table_get( thread_data->hash_table, &from );
-					
-					printf( "inserted slot = %d, expected = %d\n", inserted_slot, slot );
-					
-					fflush( stdout );
-					
-					assert( inserted_slot == slot );
-
 					thread_data->slot_data[slot].last_packet_receive_time = current_time;
 
 					break;
