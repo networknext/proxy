@@ -635,7 +635,9 @@ int session_table_get( session_table_t * table, const proxy_address_t * key )
     {
         if ( proxy_address_equal( key, &table->previous_entries[index].key ) )
         {
-        	return table->previous_entries[index].value;
+        	int value = table->previous_entries[index].value;
+        	session_table_insert( table, key, value );
+        	return value;
         }
 
         index ++;
@@ -701,18 +703,44 @@ void test_session_table()
 		assert( session_table_get( session_table, &address_b[i] ) == i );
 	}
 
-	// swap again and verify that the first set of addresses is gone, but the second set remains
+	// swap again and both address sets should be there still
 
 	session_table_swap( session_table );
 
 	for ( int i = 0; i < NumAddresses; ++i )
 	{
-		assert( session_table_get( session_table, &address_a[i] ) == -1 );
+		assert( session_table_get( session_table, &address_a[i] ) == i );
 		assert( session_table_get( session_table, &address_b[i] ) == i );
 	}
 
-	// swap again and verify that both sets of addresses are gone
+	// swap twice and verify that both sets of addresses are gone
 
+	session_table_swap( session_table );
+	session_table_swap( session_table );
+
+	for ( int i = 0; i < NumAddresses; ++i )
+	{
+		assert( session_table_get( session_table, &address_a[i] ) == -1 );
+		assert( session_table_get( session_table, &address_b[i] ) == -1 );
+	}
+
+	// add addresses again and verify they are there
+
+	for ( int i = 0; i < NumAddresses; ++i ) 
+	{
+		session_table_insert( session_table, &address_a[i], i );
+		session_table_insert( session_table, &address_b[i], i );
+	}
+
+	for ( int i = 0; i < NumAddresses; ++i )
+	{
+		assert( session_table_get( session_table, &address_a[i] ) == i );
+		assert( session_table_get( session_table, &address_b[i] ) == i );
+	}
+
+	// swap twice again and verify they are removed
+
+	session_table_swap( session_table );
 	session_table_swap( session_table );
 
 	for ( int i = 0; i < NumAddresses; ++i )
@@ -1204,7 +1232,7 @@ int main( int argc, char * argv[] )
 		}
 		else
 		{
-		    thread_sockets[i] = proxy_platform_socket_create( &config.proxy_bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+		    thread_sockets[i] = proxy_platform_socket_create( &config.proxy_bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
 		    if ( !thread_sockets[i] )
 		    {
