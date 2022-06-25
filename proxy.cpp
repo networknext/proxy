@@ -97,10 +97,8 @@ bool proxy_init()
 	config.max_packet_size = 1500;
 
 	config.proxy_thread_data_bytes = 10 * 1024 * 1024;
-
 	config.slot_thread_data_bytes = 1 * 1024 * 1024;
-
-	config.slot_thread_data_bytes = 10 * 1024 * 1024;
+	config.next_thread_data_bytes = 10 * 1024 * 1024;
 
 	config.slot_timeout_seconds = 60;
 
@@ -526,6 +524,8 @@ session_table_t * session_table_create()
     table->entries[1] = (session_table_entry_t*) calloc( SESSION_TABLE_CAPACITY, sizeof( session_table_entry_t ) );
     if ( table->entries[0] == NULL || table->entries[1] == NULL ) 
     {
+	    free( table->entries[0] );
+	    free( table->entries[1] );
         free( table );
         return NULL;
     }
@@ -647,9 +647,7 @@ int session_table_get( session_table_t * table, const proxy_address_t * key )
 
 void test_session_table()
 {
-	// todo
-	/*
-	hash_table_t * hash_table = hash_table_create();
+	session_table_t * session_table = session_table_create();
 
 	const int NumAddresses = 100;
 
@@ -664,16 +662,15 @@ void test_session_table()
 
 	for ( int i = 0; i < NumAddresses; ++i ) 
 	{
-		hash_table_insert( hash_table, &address[i], i );
+		session_table_insert( session_table, &address[i], i );
 	}
 
 	for ( int i = 0; i < NumAddresses; ++i )
 	{
-		assert( hash_table_get( hash_table, &address[i] ) == i );
+		assert( session_table_get( session_table, &address[i] ) == i );
 	}
 
-	hash_table_destroy( hash_table );
-	*/
+	session_table_destroy( session_table );
 }
 
 // ---------------------------------------------------------------------
@@ -1251,7 +1248,10 @@ int main( int argc, char * argv[] )
 		proxy_platform_thread_join( thread_data[i]->thread );
 	}
 
-	proxy_platform_thread_join( next_thread );
+	if ( !server_mode )
+	{
+		proxy_platform_thread_join( next_thread );
+	}
     
 	debug_printf( "destroying threads\n" );
 
