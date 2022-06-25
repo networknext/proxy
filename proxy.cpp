@@ -70,15 +70,6 @@ const int server_port = 50000;
 #define NEXT_RELAY_PING_PACKET                                         20
 #define NEXT_RELAY_PONG_PACKET                                         21
 
-#define NEXT_BACKEND_SERVER_INIT_REQUEST_PACKET                        50
-#define NEXT_BACKEND_SERVER_INIT_RESPONSE_PACKET                       51
-#define NEXT_BACKEND_SERVER_UPDATE_REQUEST_PACKET                      52
-#define NEXT_BACKEND_SERVER_UPDATE_RESPONSE_PACKET                     53
-#define NEXT_BACKEND_SESSION_UPDATE_REQUEST_PACKET                     54
-#define NEXT_BACKEND_SESSION_UPDATE_RESPONSE_PACKET                    55
-#define NEXT_BACKEND_MATCH_DATA_REQUEST_PACKET                         56
-#define NEXT_BACKEND_MATCH_DATA_RESPONSE_PACKET                        57
-
 //#define debug_printf printf
 #define debug_printf(...) ((void)0)
 
@@ -102,6 +93,7 @@ struct proxy_config_t
 	int num_threads;
 	int num_slots_per_thread;
 	int slot_base_port;
+	int next_base_port;
 	int max_packet_size;
 	int proxy_thread_data_bytes;
 	int slot_thread_data_bytes;
@@ -112,6 +104,7 @@ struct proxy_config_t
     proxy_address_t slot_bind_address;
 	proxy_address_t server_bind_address;
 	proxy_address_t proxy_bind_address;
+	proxy_address_t next_bind_address;
 	proxy_address_t proxy_address;
 	proxy_address_t server_address;
 };
@@ -149,6 +142,9 @@ bool proxy_init()
 	memset( &config.server_bind_address, 0, sizeof(proxy_address_t) );
 	config.server_bind_address.type = PROXY_ADDRESS_IPV4;
 	config.server_bind_address.port = server_port;
+
+	memset( &config.next_bind_address, 0, sizeof(proxy_address_t) );
+	config.next_bind_address.type = PROXY_ADDRESS_IPV4;
 
 	proxy_address_parse( &config.server_address, proxy_address );
 	proxy_address_parse( &config.server_address, server_address );
@@ -1194,7 +1190,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	  				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
 	  				{
-		  				printf( "thread %d slot %d has new client %s\n", thread_data->thread_number, i, proxy_address_to_string( &from, string_buffer ) );
+		  				printf( "proxy thread %d slot %d has new client %s\n", thread_data->thread_number, i, proxy_address_to_string( &from, string_buffer ) );
 	  					
 	  					slot = i;
 
@@ -1251,10 +1247,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 				case NEXT_CONTINUE_REQUEST_PACKET:     				printf( "NEXT_CONTINUE_REQUEST_PACKET\n" );						break; 
 				case NEXT_CLIENT_STATS_PACKET:     					printf( "NEXT_CLIENT_STATS_PACKET\n" );							break; 
 				case NEXT_ROUTE_UPDATE_ACK_PACKET:					printf( "NEXT_ROUTE_UPDATE_ACK_PACKET\n" );						break;
-				case NEXT_BACKEND_SERVER_INIT_RESPONSE_PACKET:		printf( "NEXT_BACKEND_SERVER_INIT_RESPONSE_PACKET\n" ); 		break;
-				case NEXT_BACKEND_SERVER_UPDATE_RESPONSE_PACKET:	printf( "NEXT_BACKEND_SERVER_UPDATE_RESPONSE_PACKET\n" ); 		break;
-				case NEXT_BACKEND_SESSION_UPDATE_RESPONSE_PACKET:	printf( "NEXT_BACKEND_SESSION_UPDATE_RESPONSE_PACKET\n" ); 		break;
-				case NEXT_BACKEND_MATCH_DATA_RESPONSE_PACKET:		printf( "NEXT_BACKEND_MATCH_DATA_RESPONSE_PACKET\n" ); 			break;
 				default:
 					break;
             }
@@ -1438,7 +1430,7 @@ int main( int argc, char * argv[] )
 	    {
 			proxy_address_t bind_address = config.slot_bind_address;
 
-			bind_address.port = 5000 + i;
+			bind_address.port = config.slot_base_port + i;
 
 		    slot_sockets[i] = proxy_platform_socket_create( &bind_address, 0, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
@@ -1497,7 +1489,7 @@ int main( int argc, char * argv[] )
 		}
     }
 
-    // create network next server (manages its own internal socket)
+    // create next server (manages its own internal socket)
 
 	next_server_t * next_server = NULL;
 
