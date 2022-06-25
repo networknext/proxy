@@ -35,13 +35,49 @@ const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 const char * server_address = "10.128.0.7:40000";		// google cloud
+const char * server_address = "10.128.0.3:40000";		// google cloud
 const int proxy_port = 40000;
 const int server_port = 40000;
 #else
 const char * server_address = "127.0.0.1:50000";		// local testing
+const char * proxy_address = "127.0.0.1:40000";			// local testing
 const int proxy_port = 40000;
 const int server_port = 50000;
 #endif
+
+// ---------------------------------------------------------------------
+
+#define NEXT_PASSTHROUGH_PACKET                                         0
+#define NEXT_DIRECT_PACKET                                              1
+#define NEXT_DIRECT_PING_PACKET                                         2
+#define NEXT_DIRECT_PONG_PACKET                                         3
+#define NEXT_UPGRADE_REQUEST_PACKET                                     4
+#define NEXT_UPGRADE_RESPONSE_PACKET                                    5
+#define NEXT_UPGRADE_CONFIRM_PACKET                                     6
+#define NEXT_OLD_RELAY_PING_PACKET                                      7
+#define NEXT_OLD_RELAY_PONG_PACKET                                      8
+#define NEXT_ROUTE_REQUEST_PACKET                                       9
+#define NEXT_ROUTE_RESPONSE_PACKET                                     10
+#define NEXT_CLIENT_TO_SERVER_PACKET                                   11
+#define NEXT_SERVER_TO_CLIENT_PACKET                                   12
+#define NEXT_PING_PACKET                                               13
+#define NEXT_PONG_PACKET                                               14
+#define NEXT_CONTINUE_REQUEST_PACKET                                   15
+#define NEXT_CONTINUE_RESPONSE_PACKET                                  16
+#define NEXT_CLIENT_STATS_PACKET                                       17
+#define NEXT_ROUTE_UPDATE_PACKET                                       18
+#define NEXT_ROUTE_UPDATE_ACK_PACKET                                   19
+#define NEXT_RELAY_PING_PACKET                                         20
+#define NEXT_RELAY_PONG_PACKET                                         21
+
+#define NEXT_BACKEND_SERVER_INIT_REQUEST_PACKET                        50
+#define NEXT_BACKEND_SERVER_INIT_RESPONSE_PACKET                       51
+#define NEXT_BACKEND_SERVER_UPDATE_REQUEST_PACKET                      52
+#define NEXT_BACKEND_SERVER_UPDATE_RESPONSE_PACKET                     53
+#define NEXT_BACKEND_SESSION_UPDATE_REQUEST_PACKET                     54
+#define NEXT_BACKEND_SESSION_UPDATE_RESPONSE_PACKET                    55
+#define NEXT_BACKEND_MATCH_DATA_REQUEST_PACKET                         56
+#define NEXT_BACKEND_MATCH_DATA_RESPONSE_PACKET                        57
 
 //#define debug_printf printf
 #define debug_printf(...) ((void)0)
@@ -76,6 +112,7 @@ struct proxy_config_t
     proxy_address_t slot_bind_address;
 	proxy_address_t server_bind_address;
 	proxy_address_t proxy_bind_address;
+	proxy_address_t proxy_address;
 	proxy_address_t server_address;
 };
 
@@ -113,6 +150,7 @@ bool proxy_init()
 	config.server_bind_address.type = PROXY_ADDRESS_IPV4;
 	config.server_bind_address.port = server_port;
 
+	proxy_address_parse( &config.server_address, proxy_address );
 	proxy_address_parse( &config.server_address, server_address );
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
@@ -496,6 +534,224 @@ bool proxy_address_equal( const proxy_address_t * a, const proxy_address_t * b )
 
 // ---------------------------------------------------------------------
 
+typedef uint64_t proxy_fnv_t;
+
+void proxy_fnv_init( proxy_fnv_t * fnv )
+{
+    *fnv = 0xCBF29CE484222325;
+}
+
+void proxy_fnv_write( proxy_fnv_t * fnv, const uint8_t * data, size_t size )
+{
+    for ( size_t i = 0; i < size; i++ )
+    {
+        (*fnv) ^= data[i];
+        (*fnv) *= 0x00000100000001B3;
+    }
+}
+
+uint64_t proxy_fnv_finalize( proxy_fnv_t * fnv )
+{
+    return *fnv;
+}
+
+uint64_t hash_address( const proxy_address_t * key )
+{
+	assert( key );
+    proxy_fnv_t fnv;
+    proxy_fnv_init( &fnv );
+    proxy_fnv_write( &fnv, (const uint8_t*) &key->port, 2 );
+    proxy_fnv_write( &fnv, (const uint8_t*) &key->data.ipv4, 4 );
+    return proxy_fnv_finalize( &fnv );
+}
+
+// ---------------------------------------------------------------------
+
+static void proxy_generate_pittle( uint8_t * output, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length )
+{
+    assert( output );
+    assert( from_address );
+    assert( from_address_bytes > 0 );
+    assert( to_address );
+    assert( to_address_bytes >= 0 );
+    assert( packet_length > 0 );
+#if PROXY_BIG_ENDIAN
+    proxy_bswap( from_port );
+    proxy_bswap( to_port );
+    proxy_bswap( packet_length );
+#endif // #if PROXY_BIG_ENDIAN
+    uint16_t sum = 0;
+    for ( int i = 0; i < from_address_bytes; ++i ) { sum += uint8_t(from_address[i]); }
+    const char * from_port_data = (const char*) &from_port;
+    sum += uint8_t(from_port_data[0]);
+    sum += uint8_t(from_port_data[1]);
+    for ( int i = 0; i < to_address_bytes; ++i ) { sum += uint8_t(to_address[i]); }
+    const char * to_port_data = (const char*) &to_port;
+    sum += uint8_t(to_port_data[0]);
+    sum += uint8_t(to_port_data[1]);
+    const char * packet_length_data = (const char*) &packet_length;
+    sum += uint8_t(packet_length_data[0]);
+    sum += uint8_t(packet_length_data[1]);
+    sum += uint8_t(packet_length_data[2]);
+    sum += uint8_t(packet_length_data[3]);
+#if PROXY_BIG_ENDIAN
+    proxy_bswap( sum );
+#endif // #if PROXY_BIG_ENDIAN
+    const char * sum_data = (const char*) &sum;
+    output[0] = 1 | ( uint8_t(sum_data[0]) ^ uint8_t(sum_data[1]) ^ 193 );
+    output[1] = 1 | ( ( 255 - output[0] ) ^ 113 );
+}
+
+static void proxy_generate_chonkle( uint8_t * output, const uint8_t * magic, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length )
+{
+    assert( output );
+    assert( magic );
+    assert( from_address );
+    assert( from_address_bytes >= 0 );
+    assert( to_address );
+    assert( to_address_bytes >= 0 );
+    assert( packet_length > 0 );
+#if PROXY_BIG_ENDIAN
+    proxy_bswap( from_port );
+    proxy_bswap( to_port );
+    proxy_bswap( packet_length );
+#endif // #if PROXY_BIG_ENDIAN
+    proxy_fnv_t fnv;
+    proxy_fnv_init( &fnv );
+    proxy_fnv_write( &fnv, magic, 8 );
+    proxy_fnv_write( &fnv, from_address, from_address_bytes );
+    proxy_fnv_write( &fnv, (const uint8_t*) &from_port, 2 );
+    proxy_fnv_write( &fnv, to_address, to_address_bytes );
+    proxy_fnv_write( &fnv, (const uint8_t*) &to_port, 2 );
+    proxy_fnv_write( &fnv, (const uint8_t*) &packet_length, 4 );
+    uint64_t hash = proxy_fnv_finalize( &fnv );
+#if PROXY_BIG_ENDIAN
+    proxy_bswap( hash );
+#endif // #if PROXY_BIG_ENDIAN
+    const char * data = (const char*) &hash;
+    output[0] = ( ( data[6] & 0xC0 ) >> 6 ) + 42;
+    output[1] = ( data[3] & 0x1F ) + 200;
+    output[2] = ( ( data[2] & 0xFC ) >> 2 ) + 5;
+    output[3] = data[0];
+    output[4] = ( data[2] & 0x03 ) + 78;
+    output[5] = ( data[4] & 0x7F ) + 96;
+    output[6] = ( ( data[1] & 0xFC ) >> 2 ) + 100;
+    if ( ( data[7] & 1 ) == 0 ) { output[7] = 79; } else { output[7] = 7; }
+    if ( ( data[4] & 0x80 ) == 0 ) { output[8] = 37; } else { output[8] = 83; }
+    output[9] = ( data[5] & 0x07 ) + 124;
+    output[10] = ( ( data[1] & 0xE0 ) >> 5 ) + 175;
+    output[11] = ( data[6] & 0x3F ) + 33;
+    const int value = ( data[1] & 0x03 );
+    if ( value == 0 ) { output[12] = 97; } else if ( value == 1 ) { output[12] = 5; } else if ( value == 2 ) { output[12] = 43; } else { output[12] = 13; }
+    output[13] = ( ( data[5] & 0xF8 ) >> 3 ) + 210;
+    output[14] = ( ( data[7] & 0xFE ) >> 1 ) + 17;
+}
+
+bool proxy_basic_packet_filter( const uint8_t * data, int packet_length )
+{
+    if ( packet_length == 0 )
+        return false;
+
+    if ( data[0] == 0 )
+        return true;
+
+    if ( packet_length < 18 )
+        return false;
+
+    if ( data[0] < 0x01 || data[0] > 0x63 )
+        return false;
+
+    if ( data[1] < 0x2A || data[1] > 0x2D )
+        return false;
+
+    if ( data[2] < 0xC8 || data[2] > 0xE7 )
+        return false;
+
+    if ( data[3] < 0x05 || data[3] > 0x44 )
+        return false;
+
+    if ( data[5] < 0x4E || data[5] > 0x51 )
+        return false;
+
+    if ( data[6] < 0x60 || data[6] > 0xDF )
+        return false;
+
+    if ( data[7] < 0x64 || data[7] > 0xE3 )
+        return false;
+
+    if ( data[8] != 0x07 && data[8] != 0x4F )
+        return false;
+
+    if ( data[9] != 0x25 && data[9] != 0x53 )
+        return false;
+
+    if ( data[10] < 0x7C || data[10] > 0x83 )
+        return false;
+
+    if ( data[11] < 0xAF || data[11] > 0xB6 )
+        return false;
+
+    if ( data[12] < 0x21 || data[12] > 0x60 )
+        return false;
+
+    if ( data[13] != 0x61 && data[13] != 0x05 && data[13] != 0x2B && data[13] != 0x0D )
+        return false;
+
+    if ( data[14] < 0xD2 || data[14] > 0xF1 )
+        return false;
+
+    if ( data[15] < 0x11 || data[15] > 0x90 )
+        return false;
+
+    return true;
+}
+
+void proxy_address_data( const proxy_address_t * address, uint8_t * address_data, int * address_bytes, uint16_t * address_port )
+{
+    assert( address );
+    if ( address->type == PROXY_ADDRESS_IPV4 )
+    {
+        address_data[0] = address->data.ipv4[0];
+        address_data[1] = address->data.ipv4[1];
+        address_data[2] = address->data.ipv4[2];
+        address_data[3] = address->data.ipv4[3];
+        *address_bytes = 4;
+    }
+    else if ( address->type == PROXY_ADDRESS_IPV6 )
+    {
+        for ( int i = 0; i < 8; ++i )
+        {
+            address_data[i*2]   = address->data.ipv6[i] >> 8;
+            address_data[i*2+1] = address->data.ipv6[i] & 0xFF;
+        }
+        *address_bytes = 16;
+    }
+    else
+    {
+        *address_bytes = 0;
+    }
+    *address_port = address->port;
+}
+
+bool proxy_advanced_packet_filter( const uint8_t * data, const uint8_t * magic, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length )
+{
+    if ( data[0] == 0 )
+        return true;
+    if ( packet_length < 18 )
+        return false;
+    uint8_t a[15];
+    uint8_t b[2];
+    proxy_generate_chonkle( a, magic, from_address, from_address_bytes, from_port, to_address, to_address_bytes, to_port, packet_length );
+    proxy_generate_pittle( b, from_address, from_address_bytes, from_port, to_address, to_address_bytes, to_port, packet_length );
+    if ( memcmp( a, data + 1, 15 ) != 0 )
+        return false;
+    if ( memcmp( b, data + packet_length - 2, 2 ) != 0 )
+        return false;
+    return true;
+}
+
+// ---------------------------------------------------------------------
+
 #define SESSION_TABLE_CAPACITY 4096	// must be power of 2
 
 struct session_table_entry_t 
@@ -550,37 +806,6 @@ void session_table_swap( session_table_t * table )
 	table->current_entries = table->entries[table->entries_index];
 	table->previous_sequence = table->current_sequence;
 	table->current_sequence++;
-}
-
-typedef uint64_t proxy_fnv_t;
-
-void proxy_fnv_init( proxy_fnv_t * fnv )
-{
-    *fnv = 0xCBF29CE484222325;
-}
-
-void proxy_fnv_write( proxy_fnv_t * fnv, const uint8_t * data, size_t size )
-{
-    for ( size_t i = 0; i < size; i++ )
-    {
-        (*fnv) ^= data[i];
-        (*fnv) *= 0x00000100000001B3;
-    }
-}
-
-uint64_t proxy_fnv_finalize( proxy_fnv_t * fnv )
-{
-    return *fnv;
-}
-
-uint64_t hash_address( const proxy_address_t * key )
-{
-	assert( key );
-    proxy_fnv_t fnv;
-    proxy_fnv_init( &fnv );
-    proxy_fnv_write( &fnv, (const uint8_t*) &key->port, 2 );
-    proxy_fnv_write( &fnv, (const uint8_t*) &key->data.ipv4, 4 );
-    return proxy_fnv_finalize( &fnv );
 }
 
 void session_table_insert( session_table_t * table, const proxy_address_t * key, int value )
@@ -903,11 +1128,11 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	while ( true )
 	{
-		uint8_t buffer[config.max_packet_size];
+		uint8_t packet_data[config.max_packet_size];
 
 		proxy_address_t from;
 
-		int packet_bytes = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer, config.max_packet_size );
+		int packet_bytes = proxy_platform_socket_receive_packet( thread_data->socket, &from, packet_data, config.max_packet_size );
 
 		if ( packet_bytes < 0 )
 			break;
@@ -919,12 +1144,12 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 		if ( current_time - last_swap_time > config.slot_timeout_seconds / 2 )
 		{
-			printf( "thread %d swap\n", thread_data->thread_number );
+			debug_printf( "thread %d swap\n", thread_data->thread_number );
 			session_table_swap( thread_data->session_table );
 			last_swap_time = current_time;
 		}
 
-		if ( buffer[0] == 0 )
+		if ( packet_data[0] == 0 )
 		{
 			// passthrough packet
 
@@ -945,7 +1170,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 				{
 					// forward packet to server
 					debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
-					proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer + 1, packet_bytes - 1 );
+					proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, packet_data + 1, packet_bytes - 1 );
 	                thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
 				}
 				else
@@ -999,14 +1224,44 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 				
-				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer + 1, packet_bytes - 1 );
+				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, packet_data + 1, packet_bytes - 1 );
 	  		}
 		}
 		else
 		{
-			// other packet types: drop for now
+			// other packet types
 
-			debug_printf( "not passthrough packet\n" );
+			if ( !proxy_basic_packet_filter( packet_data, packet_bytes ) )
+			{
+				// todo
+				printf( "basic packet filter dropped packet\n" );
+				continue;
+			}
+
+            const uint8_t packet_type = packet_data[0];
+
+            switch ( packet_type )
+            {
+            	case NEXT_DIRECT_PACKET:							printf( "NEXT_DIRECT_PACKET\n" ); 								break;
+            	case NEXT_DIRECT_PING_PACKET:						printf( "NEXT_DIRECT_PING_PACKET\n" ); 							break;
+				case NEXT_UPGRADE_RESPONSE_PACKET:  				printf( "NEXT_UPGRADE_RESPONSE_PACKET\n" );	    				break;
+				case NEXT_ROUTE_REQUEST_PACKET:     				printf( "NEXT_ROUTE_REQUEST_PACKET\n" );						break; 
+				case NEXT_CLIENT_TO_SERVER_PACKET:     				printf( "NEXT_CLIENT_TO_SERVER_PACKET\n" );						break; 
+				case NEXT_PING_PACKET:     							printf( "NEXT_PING_PACKET\n" );									break; 
+				case NEXT_CONTINUE_REQUEST_PACKET:     				printf( "NEXT_CONTINUE_REQUEST_PACKET\n" );						break; 
+				case NEXT_CLIENT_STATS_PACKET:     					printf( "NEXT_CLIENT_STATS_PACKET\n" );							break; 
+				case NEXT_ROUTE_UPDATE_ACK_PACKET:					printf( "NEXT_ROUTE_UPDATE_ACK_PACKET\n" );						break;
+				case NEXT_BACKEND_SERVER_INIT_RESPONSE_PACKET:		printf( "NEXT_BACKEND_SERVER_INIT_RESPONSE_PACKET\n" ); 		break;
+				case NEXT_BACKEND_SERVER_UPDATE_RESPONSE_PACKET:	printf( "NEXT_BACKEND_SERVER_UPDATE_RESPONSE_PACKET\n" ); 		break;
+				case NEXT_BACKEND_SESSION_UPDATE_RESPONSE_PACKET:	printf( "NEXT_BACKEND_SESSION_UPDATE_RESPONSE_PACKET\n" ); 		break;
+				case NEXT_BACKEND_MATCH_DATA_RESPONSE_PACKET:		printf( "NEXT_BACKEND_MATCH_DATA_RESPONSE_PACKET\n" ); 			break;
+				default:
+					break;
+            }
+            
+            // todo: process network next packets
+            
+            (void) packet_type;
 		}
 	}
 

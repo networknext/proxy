@@ -18,19 +18,15 @@ DONE
 
 	Don't set SO_REUSEPORT or SO_REUSEADDR on sockets unless needed.
 
-TODO
-
-	--------------
+	Add packet filter code to proxy.
 
 	Implement code to check non-zero byte packets against the stateless packet filter.
 
 	If the packet fails the stateless packet filter, drop it.
 
-	--------------
+TODO
 
-	Implement the direct ping/pong code inside the proxy. 
-
-	This needs to be fast pass, plus without it, a session on network next will stop refreshing the fast path hashmap and time out.
+	Check for valid network next packet types and forward them to the next socket.
 
 	--------------
 
