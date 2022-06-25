@@ -10,15 +10,38 @@ DONE
 
 	But dev4 is. Need to check the server_backend5 is all setup correctly in dev and prod.
 
-TODO
-
-	--------------
-	
 	All slot sockets need to be created prior to any threads starting up and going wide
 
 	Next thread needs access to slot sockets
 
 	Next thread needs access to thread sockets
+
+	Each slot thread knows the global slot index for its socket, this means it can communicate it to the next thread.
+
+TODO
+
+	Seems like packet loss has returned, once I moved slot sockets creation into main thread.
+
+	What did I fuck up?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	--------------
 

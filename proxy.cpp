@@ -659,6 +659,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 	debug_printf( "proxy thread %d slot thread %d started\n", thread_data->thread_number, thread_data->slot_number );
 
+	assert( thread_data->socket );
+
 	for ( int i = 0; i < config.num_threads; ++i )
 	{
 		assert( thread_data->thread_sockets[i] != NULL );
@@ -727,6 +729,7 @@ struct proxy_thread_data_t
 	proxy_platform_socket_t * socket;
 	slot_thread_data_t ** slot_thread_data;
 	proxy_platform_socket_t ** thread_sockets;
+	proxy_platform_socket_t ** slot_sockets;
 };
 
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_function( void * data )
@@ -758,21 +761,14 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		thread_data->slot_thread_data[i]->thread_sockets = thread_data->thread_sockets;
 		thread_data->slot_thread_data[i]->slot_number = i;
 
+		const int global_slot_index = thread_data->thread_number * config.num_slots_per_thread + i;
+
+		thread_data->slot_thread_data[i]->socket = thread_data->slot_sockets[global_slot_index];
+
 		proxy_platform_mutex_create( &thread_data->slot_thread_data[i]->mutex );
 
-		proxy_address_t bind_address = config.slot_bind_address;
-
-		bind_address.port = 5000 + thread_data->thread_number * config.num_slots_per_thread + i;
-
-	    thread_data->slot_thread_data[i]->socket = proxy_platform_socket_create( &bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
-
-	    if ( !thread_data->slot_thread_data[i]->socket )
-	    {
-	    	printf( "error: could not create slot socket\n" );
-	    	exit(1);
-	    }
-
 	    thread_data->slot_thread_data[i]->thread = proxy_platform_thread_create( slot_thread_function, thread_data->slot_thread_data[i] );
+
 	    if ( !thread_data->slot_thread_data[i]->thread )
 	    {
 	        printf( "error: failed to create slot thread\n" );
@@ -967,6 +963,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 struct next_thread_data_t
 {
 	next_server_t * next_server;
+	proxy_platform_socket_t ** thread_sockets;
+	proxy_platform_socket_t ** slot_sockets;
 };
 
 void next_packet_received( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
@@ -1044,9 +1042,28 @@ int main( int argc, char * argv[] )
 		printf( "network next proxy\n" );    	
     }
 
-    // todo: need to create all sockets for the slots here too
+    // create slot sockets in a flat array
 
-    // create all thread sockets prior to actually creating threads, to avoid race conditions
+    const int num_slot_sockets = config.num_threads * config.num_slots_per_thread;
+
+    proxy_platform_socket_t * slot_sockets[num_slot_sockets];
+
+    for ( int i = 0; i < num_slot_sockets; ++i )
+    {
+		proxy_address_t bind_address = config.slot_bind_address;
+
+		bind_address.port = 5000 + i;
+
+	    slot_sockets[i] = proxy_platform_socket_create( &bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+
+	    if ( !slot_sockets[i] )
+	    {
+	    	printf( "error: could not create slot socket\n" );
+	    	exit(1);
+	    }
+	}
+
+    // create thread sockets prior to actually creating threads, to avoid race conditions
 
     proxy_thread_data_t * thread_data[config.num_threads];
 
@@ -1125,8 +1142,8 @@ int main( int argc, char * argv[] )
 	for ( int i = 0; i < config.num_threads; ++i )
 	{
 		thread_data[i]->socket = thread_sockets[i];
-
 		thread_data[i]->thread_sockets = thread_sockets;
+		thread_data[i]->slot_sockets = slot_sockets;
 
 	    thread_data[i]->thread = proxy_platform_thread_create( server_mode ? server_thread_function : proxy_thread_function, thread_data[i] );
 
@@ -1158,12 +1175,12 @@ int main( int argc, char * argv[] )
 		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 
 		next_thread_data->next_server = next_server;
-
-		// todo: next thread is going to need to know about slot sockets and thread sockets
+		next_thread_data->thread_sockets = thread_sockets;
+		next_thread_data->slot_sockets = slot_sockets;
 
 	    next_thread = proxy_platform_thread_create( next_thread_function, next_thread_data );
 
-	    if ( !next_thread_data )
+	    if ( !next_thread )
 	    {
 	        printf( "error: failed to create thread\n" );
 	        exit(1);
