@@ -781,8 +781,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		if ( allocated )
 		{
 			// forward packet to client
-			// todo
-            printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
+			debug_printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
             buffer[0] = 0;
 			uint64_t hash = hash_address( &client_address );
 			int index = hash % config.num_threads;
@@ -790,8 +789,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		}
         else
         {
-        	// todo
-            printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
+            debug_printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
         }
 	}
 
@@ -907,8 +905,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 				if ( allocated )
 				{
 					// forward packet to server
-					// todo
-		  			printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
+					debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 					proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer + 1, packet_bytes - 1 );
 	                thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
 				}
@@ -970,8 +967,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		{
 			// other packet types: drop for now
 
-			// todo
-			printf( "not passthrough packet\n" );
+			debug_printf( "not passthrough packet\n" );
 		}
 	}
 
@@ -1036,8 +1032,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 		if ( packet_bytes == 0 )
 			continue;
 
-		// todo
-		printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
+		debug_printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
 
 		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
 	}
