@@ -871,6 +871,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
     (void) string_buffer;
 
+    double last_swap_time = proxy_time();
+
 	while ( true )
 	{
 		uint8_t buffer[config.max_packet_size];
@@ -884,6 +886,15 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 		if ( packet_bytes == 0 )
 			continue;
+
+		double current_time = proxy_time();
+
+		if ( current_time - last_swap_time > config.slot_timeout_seconds / 2 )
+		{
+			printf( "thread %d swap\n", thread_data->thread_number );
+			session_table_swap( thread_data->session_table );
+			last_swap_time = current_time;
+		}
 
 		if ( buffer[0] == 0 )
 		{

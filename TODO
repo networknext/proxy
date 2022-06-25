@@ -6,9 +6,15 @@ DONE
 
 	Implement test for session table that exercises swap.
 
+	Implement swap every 30 seconds for the session table in the proxy.
+
 TODO
 
-	Implement swap every 30 seconds for the session table in the proxy.
+	Session table get needs to move the session to current on get from previous.
+
+	Verify a client remains connected across two swaps now.
+
+	--------------
 
 	Force the next client to use a specific port, and then verify that it can reconnect and get "new client", 60+ seconds after it first connects to the proxy.
 
