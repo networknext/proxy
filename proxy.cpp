@@ -30,7 +30,7 @@
 const char * next_bind_address = "0.0.0.0:60000";
 const char * next_public_address = "127.0.0.1:60000";
 const char * next_datacenter = "local";
-const char * next_backend_hostname = "prod.spacecats.net";
+const char * next_backend_hostname = "dev5.spacecats.net";
 const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c9Dhwr4ZaTkEWyX2Li5Ph/UFrw8QS8hAD9SQZkuVP6x14tEcqxWppmrvbdn";
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
@@ -1095,25 +1095,30 @@ int main( int argc, char * argv[] )
 
     // create network next server (manages its own internal socket)
 
-	next_quiet( true );
+	next_server_t * next_server = NULL;
 
-    next_config_t next_config;
-    next_default_config( &next_config );
-    strncpy( next_config.server_backend_hostname, next_backend_hostname, sizeof(next_config.server_backend_hostname) - 1 );
-    strncpy( next_config.customer_private_key, next_customer_private_key, sizeof(next_config.customer_private_key) - 1 );
-
-    if ( next_init( NULL, &next_config ) != NEXT_OK )
+    if ( !server_mode )
     {
-        printf( "error: could not initialize network next\n" );
-        exit(1);
-    }
+		next_quiet( true );
 
-    next_server_t * next_server = next_server_create( NULL, next_public_address, next_bind_address, next_datacenter, next_packet_received, NULL );
-    if ( next_server == NULL )
-    {
-        printf( "error: failed to create next server\n" );
-        exit(1);
-    }
+	    next_config_t next_config;
+	    next_default_config( &next_config );
+	    strncpy( next_config.server_backend_hostname, next_backend_hostname, sizeof(next_config.server_backend_hostname) - 1 );
+	    strncpy( next_config.customer_private_key, next_customer_private_key, sizeof(next_config.customer_private_key) - 1 );
+
+	    if ( next_init( NULL, &next_config ) != NEXT_OK )
+	    {
+	        printf( "error: could not initialize network next\n" );
+	        exit(1);
+	    }
+
+	    next_server = next_server_create( NULL, next_public_address, next_bind_address, next_datacenter, next_packet_received, NULL );
+	    if ( next_server == NULL )
+	    {
+	        printf( "error: failed to create next server\n" );
+	        exit(1);
+	    }
+	}
 
     // create proxy|server threads
 
@@ -1143,21 +1148,27 @@ int main( int argc, char * argv[] )
 		}
 	}
 
-	// create next thread
+	proxy_platform_thread_t * next_thread = NULL;
+	next_thread_data_t * next_thread_data = NULL;
 
-	next_thread_data_t * next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
+	if ( !server_mode )
+	{
+		// create next thread
 
-	next_thread_data->next_server = next_server;
+		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 
-	// todo: next thread is going to need to know about slot sockets and thread sockets
+		next_thread_data->next_server = next_server;
 
-    proxy_platform_thread_t * next_thread = proxy_platform_thread_create( next_thread_function, next_thread_data );
+		// todo: next thread is going to need to know about slot sockets and thread sockets
 
-    if ( !next_thread_data )
-    {
-        printf( "error: failed to create thread\n" );
-        exit(1);
-    }
+	    next_thread = proxy_platform_thread_create( next_thread_function, next_thread_data );
+
+	    if ( !next_thread_data )
+	    {
+	        printf( "error: failed to create thread\n" );
+	        exit(1);
+	    }
+	}
 
 	// wait for CTRL-C
 
@@ -1197,10 +1208,16 @@ int main( int argc, char * argv[] )
 		thread_data[i] = NULL;
 	}
 
-	proxy_platform_thread_destroy( next_thread );
-	free( next_thread_data );
+	if ( !server_mode )
+	{
+		proxy_platform_thread_destroy( next_thread );
+		free( next_thread_data );
+	}
 
-	next_term();
+	if ( !server_mode )
+	{
+		next_term();	
+	}
 
     proxy_term();
 

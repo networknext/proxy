@@ -4,11 +4,53 @@ DONE
 
 	Verify the network next server is able to launch, run and generally be OK.
 
+	Point the next server at dev. Hopefully it works.
+
+	Looks like both dev5 and prod5 are not working for the server talking to the server backend.
+
+	But dev4 is. Need to check the server_backend5 is all setup correctly in dev and prod.
+
 TODO
+
+	--------------
 	
-	------------
+	All slot sockets need to be created prior to any threads starting up and going wide
 
+	Next thread needs access to slot sockets
 
-	In particular, it needs to initialize with the sdk5 server backend in prod.
+	Next thread needs access to thread sockets
 
-	------------
+	--------------
+
+	There needs to be a 60 second swap over for the client address mapping, and then the new client entries get setup, eg. call both current and previous client hash table to see if there is an entry for it, like with udpx.
+
+	This way there are no O(n) issues, and no need for the hash table to ever have deletes.
+
+	--------------
+
+	Implement code to check non-zero byte packets against the stateless packet filter.
+
+	If the packet fails the stateless packet filter, drop it.
+
+	--------------
+
+	Design how we pass network next packets sent by the client to the next server.
+
+	--------------
+
+	Design how the next server knows to pass upgraded direct and client to server packets to the game server,
+	via the correct slot packet so it registers as the same client.
+
+	--------------
+
+	Design how the next server receives packets from the server from the slot sockets.
+
+	--------------
+
+	Design how the server sends packets down to the client, via one of the thread sockets.
+
+	--------------
+
+	Fix the dev and server backend 5 so the server can init.
+
+	--------------
