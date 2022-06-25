@@ -498,37 +498,58 @@ bool proxy_address_equal( const proxy_address_t * a, const proxy_address_t * b )
 
 // ---------------------------------------------------------------------
 
-#define HASH_TABLE_CAPACITY 4096
+#define SESSION_TABLE_CAPACITY 4096	// must be power of 2
 
-struct hash_table_entry_t 
+struct session_table_entry_t 
 {
     proxy_address_t key;
+    uint64_t sequence;
     int value;
 };
 
-struct hash_table_t 
+struct session_table_t 
 {
-    hash_table_entry_t * entries;
+    session_table_entry_t * entries[2];
+    session_table_entry_t * current_entries;
+    session_table_entry_t * previous_entries;
+    int entries_index;
+    uint64_t current_sequence;
+    uint64_t previous_sequence;
 };
 
-hash_table_t * hash_table_create() 
+session_table_t * session_table_create() 
 {
-    hash_table_t * table = (hash_table_t*) malloc( sizeof(hash_table_t) );
+    session_table_t * table = (session_table_t*) calloc( 1, sizeof(session_table_t) );
     if ( table == NULL) 
         return NULL;
-    table->entries = (hash_table_entry_t*) calloc( HASH_TABLE_CAPACITY, sizeof( hash_table_entry_t ) );
-    if ( table->entries == NULL ) 
+    table->entries[0] = (session_table_entry_t*) calloc( SESSION_TABLE_CAPACITY, sizeof( session_table_entry_t ) );
+    table->entries[1] = (session_table_entry_t*) calloc( SESSION_TABLE_CAPACITY, sizeof( session_table_entry_t ) );
+    if ( table->entries[0] == NULL || table->entries[1] == NULL ) 
     {
         free( table );
         return NULL;
     }
+    table->current_entries = table->entries[0];
+    table->previous_entries = table->entries[1];
     return table;
 }
 
-void hash_table_destroy( hash_table_t * table )
+void session_table_destroy( session_table_t * table )
 {
-    free( table->entries );
+	assert( table );
+    free( table->entries[0] );
+    free( table->entries[1] );
     free( table );
+}
+
+void session_table_swap( session_table_t * table )
+{
+	assert( table );
+	table->entries_index = ( table->entries_index + 1 ) % 2;
+	table->previous_entries = table->current_entries;
+	table->current_entries = table->entries[table->entries_index];
+	table->previous_sequence = table->current_sequence;
+	table->current_sequence++;
 }
 
 typedef uint64_t proxy_fnv_t;
@@ -552,7 +573,7 @@ uint64_t proxy_fnv_finalize( proxy_fnv_t * fnv )
     return *fnv;
 }
 
-uint64_t hash_key( const proxy_address_t * key )
+uint64_t hash_address( const proxy_address_t * key )
 {
 	assert( key );
     proxy_fnv_t fnv;
@@ -562,44 +583,59 @@ uint64_t hash_key( const proxy_address_t * key )
     return proxy_fnv_finalize( &fnv );
 }
 
-void hash_table_insert( hash_table_t * table, const proxy_address_t * key, int value )
+void session_table_insert( session_table_t * table, const proxy_address_t * key, int value )
 {
 	assert( table );
 
-    uint64_t hash = hash_key( key );
+    uint64_t hash = hash_address( key );
 
-    const uint64_t mask = (uint64_t)( HASH_TABLE_CAPACITY - 1 );
+    const uint64_t mask = (uint64_t)( SESSION_TABLE_CAPACITY - 1 );
 
     size_t index = (size_t) ( hash & mask );
 
-    while ( table->entries[index].key.type == PROXY_ADDRESS_IPV4 ) 
+    while ( table->current_entries[index].key.type == PROXY_ADDRESS_IPV4 && table->current_entries[index].sequence == table->current_sequence ) 
     {
         index ++;
         index &= mask;
 	}
 
-    table->entries[index].key = *key;
-    table->entries[index].value = value;
-
-    assert( table->entries[index].key.type == PROXY_ADDRESS_IPV4 );
-    assert( table->entries[index].value == value );
+    table->current_entries[index].key = *key;
+    table->current_entries[index].value = value;
+    table->current_entries[index].sequence = table->current_sequence;
 }
 
-int hash_table_get( hash_table_t * table, const proxy_address_t * key ) 
+int session_table_get( session_table_t * table, const proxy_address_t * key ) 
 {
 	assert( table );
 
-    uint64_t hash = hash_key( key );
+    uint64_t hash = hash_address( key );
 
-    const uint64_t mask = (uint64_t)( HASH_TABLE_CAPACITY - 1 );
+    const uint64_t mask = (uint64_t)( SESSION_TABLE_CAPACITY - 1 );
 
     size_t index = (size_t) ( hash & mask );
 
-    while ( table->entries[index].key.type == PROXY_ADDRESS_IPV4 ) 
+    // first search current table
+
+    while ( table->current_entries[index].sequence == table->current_sequence && table->current_entries[index].key.type == PROXY_ADDRESS_IPV4 ) 
     {
-        if ( proxy_address_equal( key, &table->entries[index].key ) )
+        if ( proxy_address_equal( key, &table->current_entries[index].key ) )
         {
-        	return table->entries[index].value;
+        	return table->current_entries[index].value;
+        }
+
+        index ++;
+        index &= mask;
+    }
+
+    // fall back to previous table (these are entries about to time out on next swap if they aren't in current)
+
+    index = (size_t) ( hash & mask );
+
+    while ( table->previous_entries[index].sequence == table->previous_sequence && table->previous_entries[index].key.type == PROXY_ADDRESS_IPV4 ) 
+    {
+        if ( proxy_address_equal( key, &table->previous_entries[index].key ) )
+        {
+        	return table->previous_entries[index].value;
         }
 
         index ++;
@@ -609,8 +645,10 @@ int hash_table_get( hash_table_t * table, const proxy_address_t * key )
     return -1;
 }
 
-void test_hash_table()
+void test_session_table()
 {
+	// todo
+	/*
 	hash_table_t * hash_table = hash_table_create();
 
 	const int NumAddresses = 100;
@@ -635,6 +673,7 @@ void test_hash_table()
 	}
 
 	hash_table_destroy( hash_table );
+	*/
 }
 
 // ---------------------------------------------------------------------
@@ -694,7 +733,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 			// forward packet to client
             debug_printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
             buffer[0] = 0;
-			uint64_t hash = hash_key( &client_address );
+			uint64_t hash = hash_address( &client_address );
 			int index = hash % config.num_threads;
 			proxy_platform_socket_send_packet( thread_data->thread_sockets[index], &client_address, buffer, packet_bytes + 1 );
 		}
@@ -723,7 +762,7 @@ struct proxy_slot_data_t
 struct proxy_thread_data_t
 {
 	int thread_number;
-	hash_table_t * hash_table;
+	session_table_t * session_table;
 	proxy_slot_data_t * slot_data;
 	proxy_platform_thread_t * thread;
 	proxy_platform_socket_t * socket;
@@ -800,7 +839,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 		{
 			// passthrough packet
 
-			int slot = hash_table_get( thread_data->hash_table, &from );
+			int slot = session_table_get( thread_data->session_table, &from );
 
 			if ( slot != -1 )
 	  		{
@@ -850,7 +889,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 						thread_data->slot_thread_data[slot]->client_address = from;
 						proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
 
-						hash_table_insert( thread_data->hash_table, &from, slot );
+						session_table_insert( thread_data->session_table, &from, slot );
 
 						thread_data->slot_data[slot].last_packet_receive_time = current_time;
 
@@ -1029,7 +1068,7 @@ int main( int argc, char * argv[] )
         exit(1);
     }
 
-    test_hash_table();
+    test_session_table();
 
     const bool server_mode = ( argc == 2 ) && strcmp( argv[1], "server" ) == 0;
 
@@ -1080,7 +1119,7 @@ int main( int argc, char * argv[] )
 
 		thread_data[i]->thread_number = i;
 
-		thread_data[i]->hash_table = hash_table_create();
+		thread_data[i]->session_table = session_table_create();
 		
 		thread_data[i]->slot_data = (proxy_slot_data_t*) calloc( config.num_slots_per_thread, sizeof( proxy_slot_data_t ) );
 		for ( int j = 0; j < config.num_slots_per_thread; ++j )
@@ -1219,7 +1258,7 @@ int main( int argc, char * argv[] )
 	for ( int i = 0; i < config.num_threads; i++ )
 	{
 		proxy_platform_thread_destroy( thread_data[i]->thread );
-		hash_table_destroy( thread_data[i]->hash_table );
+		session_table_destroy( thread_data[i]->session_table );
 		free( thread_data[i]->slot_data );
 		free( thread_data[i] );
 		thread_data[i] = NULL;

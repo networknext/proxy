@@ -1,47 +1,6 @@
 DONE
 
-	Next, setup a next thread, where the network next server runs (and has its own regular socket)
-
-	Verify the network next server is able to launch, run and generally be OK.
-
-	Point the next server at dev. Hopefully it works.
-
-	Looks like both dev5 and prod5 are not working for the server talking to the server backend.
-
-	But dev4 is. Need to check the server_backend5 is all setup correctly in dev and prod.
-
-	All slot sockets need to be created prior to any threads starting up and going wide
-
-	Next thread needs access to slot sockets
-
-	Next thread needs access to thread sockets
-
-	Each slot thread knows the global slot index for its socket, this means it can communicate it to the next thread.
-
 TODO
-
-	Seems like packet loss has returned, once I moved slot sockets creation into main thread.
-
-	What did I fuck up?
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	--------------
 
@@ -54,6 +13,38 @@ TODO
 	Implement code to check non-zero byte packets against the stateless packet filter.
 
 	If the packet fails the stateless packet filter, drop it.
+
+	--------------
+
+	Implement the direct ping/pong code inside the proxy. This needs to be fast pass, plus without it, a session on network next will stop refreshing the fast path hashmap and time out.
+
+	--------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	--------------
 
