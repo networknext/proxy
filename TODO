@@ -24,56 +24,44 @@ DONE
 
 	If the packet fails the stateless packet filter, drop it.
 
+	Check for valid network next packet types and print them out.
+
 TODO
 
-	Check for valid network next packet types and forward them to the next socket.
+	Implement code to handle the direct ping -> direct pong response in the stateless packet handler.
+
+	Forward other network next packets to the next thread, with the address prefixed in the packet before the packet data.
+
+	Implement a server mode when the socket is disabled. Might need to add server options bitfield when creating the server.
+
+	Implement callbacks to insert received packets into the server.
+
+	Implement callbacks to send packets to an address on behalf of the server.
+
+	Create a custom socket on the next thread, and read packets, drop any not coming from the proxy address, then strip off the address/port prefix and insert the received packet into the server.
+
+	Implement code to send packets to the client, via a random one of the proxy sockets.
 
 	--------------
 
+	Get the server actually working
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	Verify that network next acceleration works through the proxy.
 
 	--------------
 
-	Design how we pass network next packets sent by the client to the next server.
+	Load test again in google, to make sure nothing has broken.
 
 	--------------
 
-	Design how the next server knows to pass upgraded direct and client to server packets to the game server,
-	via the correct slot packet so it registers as the same client.
+	Setup a relay in GCore ashburn datacenter (10G).
+
+	Setup a client, server and proxy in GCore (10G).
+
+	Load test in GCore.
 
 	--------------
 
-	Design how the next server receives packets from the server from the slot sockets.
-
-	--------------
-
-	Design how the server sends packets down to the client, via one of the thread sockets.
-
-	--------------
-
-	Fix the dev and server backend 5 so the server can init.
+	Work is done :)
 
 	--------------
