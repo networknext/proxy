@@ -651,24 +651,77 @@ void test_session_table()
 
 	const int NumAddresses = 100;
 
-	proxy_address_t address[NumAddresses];
+	// add some addresses
+
+	proxy_address_t address_a[NumAddresses];
 
 	for ( int i = 0; i < NumAddresses; ++i ) 
 	{
 		char buffer[1024];
 		sprintf( buffer, "127.0.0.1:%d", 50000 + i );
-		proxy_address_parse( &address[i], buffer );
+		proxy_address_parse( &address_a[i], buffer );
 	}
 
 	for ( int i = 0; i < NumAddresses; ++i ) 
 	{
-		session_table_insert( session_table, &address[i], i );
+		session_table_insert( session_table, &address_a[i], i );
+	}
+
+	// verify these addresses are in the table
+
+	for ( int i = 0; i < NumAddresses; ++i )
+	{
+		assert( session_table_get( session_table, &address_a[i] ) == i );
+	}
+
+	// swap the table and verify the addesses are still there
+
+	session_table_swap( session_table );
+
+	for ( int i = 0; i < NumAddresses; ++i )
+	{
+		assert( session_table_get( session_table, &address_a[i] ) == i );
+	}
+
+	// add a second set of addresses and verify that both sets of addresses are there
+
+	proxy_address_t address_b[NumAddresses];
+
+	for ( int i = 0; i < NumAddresses; ++i ) 
+	{
+		char buffer[1024];
+		sprintf( buffer, "127.0.0.1:%d", 60000 + i );
+		proxy_address_parse( &address_b[i], buffer );
+		session_table_insert( session_table, &address_b[i], i );
 	}
 
 	for ( int i = 0; i < NumAddresses; ++i )
 	{
-		assert( session_table_get( session_table, &address[i] ) == i );
+		assert( session_table_get( session_table, &address_a[i] ) == i );
+		assert( session_table_get( session_table, &address_b[i] ) == i );
 	}
+
+	// swap again and verify that the first set of addresses is gone, but the second set remains
+
+	session_table_swap( session_table );
+
+	for ( int i = 0; i < NumAddresses; ++i )
+	{
+		assert( session_table_get( session_table, &address_a[i] ) == -1 );
+		assert( session_table_get( session_table, &address_b[i] ) == i );
+	}
+
+	// swap again and verify that both sets of addresses are gone
+
+	session_table_swap( session_table );
+
+	for ( int i = 0; i < NumAddresses; ++i )
+	{
+		assert( session_table_get( session_table, &address_a[i] ) == -1 );
+		assert( session_table_get( session_table, &address_b[i] ) == -1 );
+	}
+
+	// clean up
 
 	session_table_destroy( session_table );
 }

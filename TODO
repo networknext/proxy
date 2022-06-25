@@ -1,12 +1,16 @@
 DONE
 
+	Renamed hash_table to session_table and implemented double buffer swap for timeouts without O(n).
+
+	Server was creating the slot sockets, which messed things up. only proxy creates them now.
+
+	Implement test for session table that exercises swap.
+
 TODO
 
-	--------------
+	Implement swap every 30 seconds for the session table in the proxy.
 
-	There needs to be a 60 second swap over for the client address mapping, and then the new client entries get setup, eg. call both current and previous client hash table to see if there is an entry for it, like with udpx.
-
-	This way there are no O(n) issues, and no need for the hash table to ever have deletes.
+	Force the next client to use a specific port, and then verify that it can reconnect and get "new client", 60+ seconds after it first connects to the proxy.
 
 	--------------
 
