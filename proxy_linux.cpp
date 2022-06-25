@@ -166,7 +166,7 @@ void proxy_platform_sleep( double time )
 
 void proxy_platform_socket_destroy( proxy_platform_socket_t * socket );
 
-proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * address, int socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size )
+proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * address, uint32_t socket_flags, float timeout_seconds, int send_buffer_size, int receive_buffer_size )
 {
     assert( address );
     assert( address->type != PROXY_ADDRESS_NONE );
@@ -202,19 +202,22 @@ proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * addres
 
     // set reuse address and port options
 
-	const int enable = 1;
-
-    if ( setsockopt( socket->handle, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int) ) != 0 )
+    if ( socket_flags & PROXY_PLATFORM_SOCKET_REUSE_PORT )
     {
-        proxy_printf( PROXY_LOG_LEVEL_ERROR, "failed to set socket reuse address" );
-        return NULL;
-    }
+		const int enable = 1;
 
-    if ( setsockopt( socket->handle, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int) ) != 0 )
-    {
-        proxy_printf( PROXY_LOG_LEVEL_ERROR, "failed to set socket reuse port" );
-        return NULL;
-    }
+	    if ( setsockopt( socket->handle, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int) ) != 0 )
+	    {
+	        proxy_printf( PROXY_LOG_LEVEL_ERROR, "failed to set socket reuse address" );
+	        return NULL;
+	    }
+
+	    if ( setsockopt( socket->handle, SOL_SOCKET, SO_REUSEPORT, &enable, sizeof(int) ) != 0 )
+	    {
+	        proxy_printf( PROXY_LOG_LEVEL_ERROR, "failed to set socket reuse port" );
+	        return NULL;
+	    }
+	}
 
     // increase socket send and receive buffer sizes
 
@@ -302,7 +305,7 @@ proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * addres
 
     // set non-blocking io and receive timeout
 
-    if ( socket_type == PROXY_PLATFORM_SOCKET_NON_BLOCKING )
+    if ( socket_flags & PROXY_PLATFORM_SOCKET_NON_BLOCKING )
     {
         // non-blocking
         if ( fcntl( socket->handle, F_SETFL, O_NONBLOCK, 1 ) == -1 )

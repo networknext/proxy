@@ -229,7 +229,7 @@ extern bool proxy_platform_inet_pton6( const char * address_string, uint16_t * a
 
 extern bool proxy_platform_inet_ntop6( const uint16_t * address, char * address_string, size_t address_string_size );
 
-extern proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * address, int socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size );
+extern proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * address, uint32_t socket_type, float timeout_seconds, int send_buffer_size, int receive_buffer_size );
 
 extern void proxy_platform_socket_destroy( proxy_platform_socket_t * socket );
 
@@ -1185,7 +1185,7 @@ int main( int argc, char * argv[] )
 
 			bind_address.port = 5000 + i;
 
-		    slot_sockets[i] = proxy_platform_socket_create( &bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+		    slot_sockets[i] = proxy_platform_socket_create( &bind_address, 0, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
 		    if ( !slot_sockets[i] )
 		    {
@@ -1222,7 +1222,7 @@ int main( int argc, char * argv[] )
 
 		if ( server_mode )
 		{
-		    thread_sockets[i] = proxy_platform_socket_create( &config.server_bind_address, PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+		    thread_sockets[i] = proxy_platform_socket_create( &config.server_bind_address, PROXY_PLATFORM_SOCKET_REUSE_PORT | PROXY_PLATFORM_SOCKET_NON_BLOCKING, 0.0f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
 		    if ( !thread_sockets[i] )
 		    {
@@ -1232,7 +1232,7 @@ int main( int argc, char * argv[] )
 		}
 		else
 		{
-		    thread_sockets[i] = proxy_platform_socket_create( &config.proxy_bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+		    thread_sockets[i] = proxy_platform_socket_create( &config.proxy_bind_address, PROXY_PLATFORM_SOCKET_REUSE_PORT, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
 
 		    if ( !thread_sockets[i] )
 		    {

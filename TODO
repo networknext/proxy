@@ -12,13 +12,13 @@ DONE
 
 	Verify a client remains connected across two swaps now.
 
-TODO
-
 	Force the next client to use a specific port, and then verify that it can reconnect and get "new client", 60+ seconds after it first connects to the proxy.
 
-	Does not work, because the proxy threads are not waking up while blocking for sockets (with no sockets being received...)
+	Verified, but had to work around blocking socket recv timeout not working on macos.
 
-	This shouldn't really happen.
+	Don't set SO_REUSEPORT or SO_REUSEADDR on sockets unless needed.
+
+TODO
 
 	--------------
 
@@ -28,10 +28,11 @@ TODO
 
 	--------------
 
-	Implement the direct ping/pong code inside the proxy. This needs to be fast pass, plus without it, a session on network next will stop refreshing the fast path hashmap and time out.
+	Implement the direct ping/pong code inside the proxy. 
+
+	This needs to be fast pass, plus without it, a session on network next will stop refreshing the fast path hashmap and time out.
 
 	--------------
-
 
 
 

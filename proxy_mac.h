@@ -30,8 +30,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define PROXY_PLATFORM_SOCKET_NON_BLOCKING       0
-#define PROXY_PLATFORM_SOCKET_BLOCKING           1
+#define PROXY_PLATFORM_SOCKET_NON_BLOCKING       (1<<0)
+#define PROXY_PLATFORM_SOCKET_REUSE_PORT         (1<<1)
 
 // -------------------------------------
 
