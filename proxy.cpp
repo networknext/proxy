@@ -728,7 +728,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		if ( allocated )
 		{
 			// forward packet to client
-            debug_printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
+			// todo
+            printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
             buffer[0] = 0;
 			uint64_t hash = hash_address( &client_address );
 			int index = hash % config.num_threads;
@@ -736,7 +737,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		}
         else
         {
-            debug_printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
+        	// todo
+            printf( "proxy thread %d slot %d received packet from %s, but slot is not allocated\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &from, string_buffer ) );
         }
 	}
 
@@ -852,7 +854,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 				if ( allocated )
 				{
 					// forward packet to server
-		  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
+					// todo
+		  			printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
 					proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, buffer + 1, packet_bytes - 1 );
 	                thread_data->slot_data[slot].last_packet_receive_time = proxy_time();
 				}
@@ -980,7 +983,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 		if ( packet_bytes == 0 )
 			continue;
 
-		debug_printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
+		// todo
+		printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
 
 		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
 	}
@@ -1084,19 +1088,24 @@ int main( int argc, char * argv[] )
 
     proxy_platform_socket_t * slot_sockets[num_slot_sockets];
 
-    for ( int i = 0; i < num_slot_sockets; ++i )
+    memset( slot_sockets, 0, sizeof(proxy_platform_socket_t*) );
+
+    if ( !server_mode )
     {
-		proxy_address_t bind_address = config.slot_bind_address;
-
-		bind_address.port = 5000 + i;
-
-	    slot_sockets[i] = proxy_platform_socket_create( &bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
-
-	    if ( !slot_sockets[i] )
+	    for ( int i = 0; i < num_slot_sockets; ++i )
 	    {
-	    	printf( "error: could not create slot socket\n" );
-	    	exit(1);
-	    }
+			proxy_address_t bind_address = config.slot_bind_address;
+
+			bind_address.port = 5000 + i;
+
+		    slot_sockets[i] = proxy_platform_socket_create( &bind_address, PROXY_PLATFORM_SOCKET_BLOCKING, 0.1f, config.socket_send_buffer_size, config.socket_receive_buffer_size );
+
+		    if ( !slot_sockets[i] )
+		    {
+		    	printf( "error: could not create slot socket\n" );
+		    	exit(1);
+		    }
+		}
 	}
 
     // create thread sockets prior to actually creating threads, to avoid race conditions
