@@ -11082,9 +11082,6 @@ struct next_server_internal_t
 {
     NEXT_DECLARE_SENTINEL(0)
 
-    // todo
-    // void (*wake_up_callback)( void * context );
-
     void * context;
     int state;
     uint64_t customer_id;
@@ -12854,10 +12851,6 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         }
     }
 
-    // todo: fixed down to heure
-
-#if 0 // todo
-
     // don't process network next packets until the server is initialized
 
     if ( server->state != NEXT_SERVER_STATE_INITIALIZED )
@@ -12870,8 +12863,10 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_DIRECT_PACKET )
     {
-        packet_data += 16;
-        packet_bytes -= 18;
+    	begin += 16;
+    	end -= 2;
+
+    	const int packet_bytes = end - begin;
 
         if ( packet_bytes <= 9 )
         {
@@ -12887,7 +12882,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
-        const uint8_t * p = packet_data;
+        const uint8_t * p = packet_data + begin;
 
         uint8_t packet_session_sequence = next_read_uint8( &p );
 
@@ -12931,7 +12926,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         notify->packet_bytes = packet_bytes - 9;
         next_assert( notify->packet_bytes > 0 );
         next_assert( notify->packet_bytes <= NEXT_MTU );
-        memcpy( notify->packet_data, packet_data + 9, size_t(notify->packet_bytes) );
+        memcpy( notify->packet_data, packet_data + begin + 9, size_t(notify->packet_bytes) );
         {
             next_platform_mutex_guard( &server->notify_mutex );
             next_queue_push( server->notify_queue, notify );
@@ -12942,11 +12937,11 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     // backend server response
 
-    if ( packet_id == NEXT_BACKEND_SERVER_RESPONSE_PACKET )
+    if ( packet_id == NEXT_BACKEND_SERVER_UPDATE_RESPONSE_PACKET )
     {
-        NextBackendServerResponsePacket packet;
+        NextBackendServerUpdateResponsePacket packet;
 
-        if ( next_read_backend_packet( packet_id, packet_data, packet_bytes, &packet, next_signed_packets, next_server_backend_public_key ) != packet_id )
+        if ( next_read_backend_packet( packet_id, packet_data, begin, end, &packet, next_signed_packets, next_server_backend_public_key ) != packet_id )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "server ignored server response packet from backend. packet failed to read" );
             return;
@@ -13007,11 +13002,11 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     // backend session response
 
-    if ( packet_id == NEXT_BACKEND_SESSION_RESPONSE_PACKET )
+    if ( packet_id == NEXT_BACKEND_SESSION_UPDATE_RESPONSE_PACKET )
     {
-        NextBackendSessionResponsePacket packet;
+        NextBackendSessionUpdateResponsePacket packet;
 
-        if ( next_read_backend_packet( packet_id, packet_data, packet_bytes, &packet, next_signed_packets, next_server_backend_public_key ) != packet_id )
+        if ( next_read_backend_packet( packet_id, packet_data, begin, end, &packet, next_signed_packets, next_server_backend_public_key ) != packet_id )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "server ignored session response packet from backend. packet failed to read" );
             return;
@@ -13129,7 +13124,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             entry->previous_server_events = 0;
         }
 
-        if ( entry->session_update_flush && entry->session_update_packet.client_ping_timed_out && packet.slice_number == entry->session_flush_update_sequence - 1 )
+        if ( entry->session_update_flush && entry->session_update_request_packet.client_ping_timed_out && packet.slice_number == entry->session_flush_update_sequence - 1 )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "server flushed session update for session %" PRIx64 " to backend", entry->session_id );
             entry->session_update_flush_finished = true;
@@ -13152,7 +13147,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         NextBackendMatchDataResponsePacket packet;
         memset( &packet, 0, sizeof(packet) );
 
-        if ( next_read_backend_packet( packet_id, packet_data, packet_bytes, &packet, next_signed_packets, next_server_backend_public_key ) != packet_id )
+        if ( next_read_backend_packet( packet_id, packet_data, begin, end, &packet, next_signed_packets, next_server_backend_public_key ) != packet_id )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "server ignored match data response packet from backend. packet failed to read" );
             return;
@@ -13209,6 +13204,10 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
         return;
     }
+
+    // todo: fixed down to heure
+
+#if 0 // todo
 
     // upgrade response packet
 
