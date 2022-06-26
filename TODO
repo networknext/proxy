@@ -40,9 +40,9 @@ DONE
 
 TODO
 
-	--------------
+	Update next_server_internal_process_network_next_packet to work with begin/end
 
-	Now actually integrate the callback so subsequent packet reads know to skip forward, and potentially adjust bytes down depending on begin/end.
+	Update next_server_internal_process_passthrough_packet to work with begin/end
 
 	--------------
 
