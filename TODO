@@ -46,9 +46,9 @@ DONE
 
 	Update all unit tests to the new way of reading packets.
 
-TODO
-
 	Update all code in the client and server to use the new way of reading packets.
+
+TODO
 
 	--------------
 

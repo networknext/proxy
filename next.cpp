@@ -4077,22 +4077,11 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
     return (int) packet_id;
 }
 
-void next_post_validate_packet( uint8_t * packet_data, int packet_bytes, void * packet_object, const int * encrypted_packet, uint64_t * sequence, const uint8_t * encrypt_private_key, next_replay_protection_t * replay_protection )
+void next_post_validate_packet( uint8_t packet_id, const int * encrypted_packet, uint64_t * sequence, next_replay_protection_t * replay_protection )
 {
-    (void) packet_bytes;
-    (void) packet_object;
-    (void) encrypt_private_key;
+    const bool payload_packet = next_is_payload_packet( packet_id );
 
-    next_assert( packet_bytes >= 1 );
-
-    if ( packet_bytes < 1 )
-        return;
-
-    uint8_t packet_id = packet_data[0];
-
-    bool payload_packet = next_is_payload_packet( packet_id );
-
-    if ( encrypted_packet && encrypted_packet[packet_id] && payload_packet )
+    if ( payload_packet && encrypted_packet && encrypted_packet[packet_id] )
     {
         next_replay_protection_advance_sequence( replay_protection, *sequence );
     }
@@ -6783,14 +6772,13 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
         }
 
         NextUpgradeRequestPacket packet;
-        // todo
-        /*
-        if ( next_read_packet( packet_data, packet_bytes, &packet, NULL, NULL, NULL, NULL, NULL, NULL ) != packet_id )
+        int begin = 16;
+        int end = packet_bytes - 2;
+        if ( next_read_packet( NEXT_UPGRADE_REQUEST_PACKET, packet_data, begin, end, &packet, NULL, NULL, NULL, NULL, NULL, NULL ) != packet_id )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "client ignored upgrade request packet from server. failed to read" );
             return;
         }
-        */
 
         if ( packet.protocol_version != next_protocol_version() )
         {
@@ -6798,7 +6786,7 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
             return;
         }
 
-        next_post_validate_packet( packet_data, packet_bytes, &packet, NULL, NULL, NULL, NULL );
+        next_post_validate_packet( NEXT_UPGRADE_REQUEST_PACKET, NULL, NULL, NULL );
 
         next_printf( NEXT_LOG_LEVEL_DEBUG, "client received upgrade request packet from server" );
 
@@ -6920,14 +6908,13 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
         }
 
         NextUpgradeConfirmPacket packet;
-        // todo
-        /*
-        if ( next_read_packet( packet_data, packet_bytes, &packet, NULL, NULL, NULL, NULL, NULL, NULL ) != packet_id )
+        int begin = 16;
+        int end = packet_bytes - 2;
+        if ( next_read_packet( NEXT_UPGRADE_CONFIRM_PACKET, packet_data, begin, end, &packet, NULL, NULL, NULL, NULL, NULL, NULL ) != packet_id )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "client ignored upgrade request packet from server. could not read packet" );
             return;
         }
-        */
 
         if ( memcmp( packet.client_kx_public_key, client->client_kx_public_key, NEXT_CRYPTO_KX_PUBLICKEYBYTES ) != 0 )
         {
@@ -6951,7 +6938,7 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
 
         next_printf( NEXT_LOG_LEVEL_DEBUG, "client received upgrade confirm packet from server" );
 
-        next_post_validate_packet( packet_data, packet_bytes, &packet, NULL, NULL, NULL, NULL );
+        next_post_validate_packet( NEXT_UPGRADE_CONFIRM_PACKET, NULL, NULL, NULL );
 
         client->upgraded = true;
         client->upgrade_sequence = packet.upgrade_sequence;
@@ -7402,18 +7389,18 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
 
         uint64_t packet_sequence = 0;
 
-        // todo
-        /*
-        if ( next_read_packet( packet_data, packet_bytes, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, client->client_receive_key, &client->internal_replay_protection ) != packet_id )
+        int begin = 16;
+        int end = packet_bytes - 2;
+
+        if ( next_read_packet( NEXT_DIRECT_PONG_PACKET, packet_data, begin, end, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, client->client_receive_key, &client->internal_replay_protection ) != packet_id )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "client ignored direct pong packet. could not read" );
             return;
         }
-       	*/
 
         next_ping_history_pong_received( &client->direct_ping_history, packet.ping_sequence, next_time() );
 
-        next_post_validate_packet( packet_data, packet_bytes, &packet, next_encrypted_packets, &packet_sequence, client->client_receive_key, &client->internal_replay_protection );
+        next_post_validate_packet( NEXT_DIRECT_PONG_PACKET, next_encrypted_packets, &packet_sequence, &client->internal_replay_protection );
 
         client->last_direct_pong_time = next_time();
 
@@ -7434,14 +7421,14 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
 
         uint64_t packet_sequence = 0;
 
-        // todo
-        /*
-        if ( next_read_packet( packet_data, packet_bytes, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, client->client_receive_key, &client->internal_replay_protection ) != packet_id )
+        int begin = 16;
+        int end = packet_bytes - 2;
+
+        if ( next_read_packet( NEXT_ROUTE_UPDATE_PACKET, packet_data, begin, end, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, client->client_receive_key, &client->internal_replay_protection ) != packet_id )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "client ignored route update packet. could not read" );
             return;
         }
-        */
 
         if ( packet.sequence < client->route_update_sequence )
         {
@@ -7449,7 +7436,7 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
             return;
         }
 
-        next_post_validate_packet( packet_data, packet_bytes, &packet, next_encrypted_packets, &packet_sequence, client->client_receive_key, &client->internal_replay_protection );
+        next_post_validate_packet( NEXT_ROUTE_UPDATE_PACKET, next_encrypted_packets, &packet_sequence, &client->internal_replay_protection );
 
         bool fallback_to_direct = false;
 
@@ -13217,17 +13204,13 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         return;
     }
 
-    // todo: fixed down to heure
-
-#if 0 // todo
-
     // upgrade response packet
 
     if ( packet_id == NEXT_UPGRADE_RESPONSE_PACKET )
     {
         NextUpgradeResponsePacket packet;
 
-        if ( next_read_packet( packet_data, packet_bytes, &packet, next_signed_packets, NULL, NULL, NULL, NULL, NULL ) != packet_id )
+        if ( next_read_packet( NEXT_UPGRADE_RESPONSE_PACKET, packet_data, begin, end, &packet, next_signed_packets, NULL, NULL, NULL, NULL, NULL ) != packet_id )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "server ignored upgrade response packet. did not read" );
             return;
@@ -13372,8 +13355,8 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
-        next_post_validate_packet( packet_data, packet_bytes, &packet, NULL, NULL, NULL, NULL );
-
+        next_post_validate_packet( NEXT_UPGRADE_RESPONSE_PACKET, NULL, NULL, NULL );
+        
         if ( !upgraded )
         {
             char address_buffer[NEXT_MAX_ADDRESS_STRING_LENGTH];
@@ -13407,8 +13390,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_ROUTE_REQUEST_PACKET )
     {
-        packet_data += 16;
-        packet_bytes -= 18;
+    	const int packet_bytes = end - begin;
 
         if ( packet_bytes != NEXT_ENCRYPTED_ROUTE_TOKEN_BYTES )
         {
@@ -13416,7 +13398,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
-        uint8_t * buffer = packet_data;
+        uint8_t * buffer = packet_data + begin;
         next_route_token_t route_token;
         if ( next_read_encrypted_route_token( &buffer, &route_token, next_router_public_key, server->server_route_private_key ) != NEXT_OK )
         {
@@ -13491,8 +13473,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_CONTINUE_REQUEST_PACKET )
     {
-        packet_data += 16;
-        packet_bytes -= 18;
+    	const int packet_bytes = end - begin;
 
         if ( packet_bytes != NEXT_ENCRYPTED_CONTINUE_TOKEN_BYTES )
         {
@@ -13500,7 +13481,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
-        uint8_t * buffer = packet_data;
+        uint8_t * buffer = packet_data + begin;
         next_continue_token_t continue_token;
         if ( next_read_encrypted_continue_token( &buffer, &continue_token, next_router_public_key, server->server_route_private_key ) != NEXT_OK )
         {
@@ -13571,8 +13552,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_CLIENT_TO_SERVER_PACKET )
     {
-        packet_data += 16;
-        packet_bytes -= 18;
+    	const int packet_bytes = end - begin;
 
         if ( packet_bytes <= NEXT_HEADER_BYTES )
         {
@@ -13595,7 +13575,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         notify->packet_bytes = packet_bytes - NEXT_HEADER_BYTES;
         next_assert( notify->packet_bytes > 0 );
         next_assert( notify->packet_bytes <= NEXT_MTU );
-        memcpy( notify->packet_data, packet_data + NEXT_HEADER_BYTES, size_t(notify->packet_bytes) );
+        memcpy( notify->packet_data, packet_data + begin + NEXT_HEADER_BYTES, size_t(notify->packet_bytes) );
         {
             next_platform_mutex_guard( &server->notify_mutex );
             next_queue_push( server->notify_queue, notify );
@@ -13608,8 +13588,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_PING_PACKET )
     {
-        packet_data += 16;
-        packet_bytes -= 18;
+    	const int packet_bytes = end - begin;
 
         if ( packet_bytes != NEXT_HEADER_BYTES + 8 )
         {
@@ -13624,7 +13603,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
-        const uint8_t * p = packet_data + NEXT_HEADER_BYTES;
+        const uint8_t * p = packet_data + begin + NEXT_HEADER_BYTES;
 
         uint64_t ping_sequence = next_read_uint64( &p );
 
@@ -13685,12 +13664,12 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         uint64_t packet_sequence = 0;
 
         NextDirectPingPacket packet;
-        if ( next_read_packet( packet_data, packet_bytes, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, session->receive_key, &session->internal_replay_protection ) != packet_id )
+        if ( next_read_packet( NEXT_DIRECT_PING_PACKET, packet_data, begin, end, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, session->receive_key, &session->internal_replay_protection ) != packet_id )
             return;
 
         session->last_client_direct_ping = next_time();
 
-        next_post_validate_packet( packet_data, packet_bytes, &packet, next_encrypted_packets, &packet_sequence, session->receive_key, &session->internal_replay_protection );
+        next_post_validate_packet( NEXT_DIRECT_PING_PACKET, next_encrypted_packets, &packet_sequence, &session->internal_replay_protection );
 
         NextDirectPongPacket response;
         response.ping_sequence = packet.ping_sequence;
@@ -13717,10 +13696,10 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
         uint64_t packet_sequence = 0;
 
-        if ( next_read_packet( packet_data, packet_bytes, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, session->receive_key, &session->internal_replay_protection ) != packet_id )
+        if ( next_read_packet( NEXT_CLIENT_STATS_PACKET, packet_data, begin, end, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, session->receive_key, &session->internal_replay_protection ) != packet_id )
             return;
 
-        next_post_validate_packet( packet_data, packet_bytes, &packet, next_encrypted_packets, &packet_sequence, session->receive_key, &session->internal_replay_protection );
+        next_post_validate_packet( NEXT_CLIENT_STATS_PACKET, next_encrypted_packets, &packet_sequence, &session->internal_replay_protection );
 
         if ( packet_sequence > session->stats_sequence )
         {
@@ -13791,7 +13770,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
         uint64_t packet_sequence = 0;
 
-        if ( next_read_packet( packet_data, packet_bytes, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, session->receive_key, &session->internal_replay_protection ) != packet_id )
+        if ( next_read_packet( NEXT_ROUTE_UPDATE_ACK_PACKET, packet_data, begin, end, &packet, next_signed_packets, next_encrypted_packets, &packet_sequence, NULL, session->receive_key, &session->internal_replay_protection ) != packet_id )
             return;
 
         if ( packet.sequence != session->update_sequence )
@@ -13800,7 +13779,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
-        next_post_validate_packet( packet_data, packet_bytes, &packet, next_encrypted_packets, &packet_sequence, session->receive_key, &session->internal_replay_protection );
+        next_post_validate_packet( NEXT_ROUTE_UPDATE_ACK_PACKET, next_encrypted_packets, &packet_sequence, &session->internal_replay_protection );
 
         next_printf( NEXT_LOG_LEVEL_DEBUG, "server received route update ack from client for session %" PRIx64, session->session_id );
 
@@ -13811,8 +13790,6 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
         return;
     }
-
-#endif
 }
 
 void next_server_internal_process_passthrough_packet( next_server_internal_t * server, const next_address_t * from, uint8_t * packet_data, int packet_bytes )
@@ -13929,8 +13906,7 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
 
     if ( packet_type != NEXT_PASSTHROUGH_PACKET )
     {
-    	// todo: begin/end
-        next_server_internal_process_network_next_packet( server, &from, packet_data, begin, end );
+    	next_server_internal_process_network_next_packet( server, &from, packet_data, begin, end );
     }
     else
     {
