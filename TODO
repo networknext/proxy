@@ -38,11 +38,13 @@ DONE
 
 	Sketched out the callback roughly.
 
+	Update next_server_internal_process_network_next_packet to work with begin/end for backend packets.
+
+	Update read backend packet function to use begin/end.
+
 TODO
 
-	Update next_server_internal_process_network_next_packet to work with begin/end
-
-	Update next_server_internal_process_passthrough_packet to work with begin/end
+	Now update next_read_packet to use begin/end.
 
 	--------------
 

@@ -870,6 +870,8 @@ int session_table_get( session_table_t * table, const proxy_address_t * key )
 
 void test_session_table()
 {
+	printf( "test_session_table\n" );
+
 	session_table_t * session_table = session_table_create();
 
 	const int NumAddresses = 100;
@@ -973,6 +975,30 @@ void test_session_table()
 	// clean up
 
 	session_table_destroy( session_table );
+}
+
+extern void next_tests();
+
+void run_tests()
+{
+	next_quiet( true );
+
+    next_config_t next_config;
+    next_default_config( &next_config );
+    strncpy( next_config.server_backend_hostname, next_backend_hostname, sizeof(next_config.server_backend_hostname) - 1 );
+    strncpy( next_config.customer_private_key, next_customer_private_key, sizeof(next_config.customer_private_key) - 1 );
+
+    if ( next_init( NULL, &next_config ) != NEXT_OK )
+    {
+        printf( "error: could not initialize network next\n" );
+        exit(1);
+    }
+
+    next_test();
+
+    test_session_table();
+
+    next_term();
 }
 
 // ---------------------------------------------------------------------
@@ -1395,25 +1421,31 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC next_thread_fun
 
 int main( int argc, char * argv[] )
 {
-	signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
-
-    if ( !proxy_init() )
-    {
-        printf( "error: failed to initialize\n" );
-        exit(1);
-    }
-
-    test_session_table();
-
     const bool server_mode = ( argc == 2 ) && strcmp( argv[1], "server" ) == 0;
+    
+    const bool test_mode = (argc == 2 ) && strcmp( argv[1], "test" ) == 0;
 
     if ( server_mode )
     {
 		printf( "network next server\n" );
     }
+    else if ( test_mode )
+    {
+		printf( "running tests\n" );
+    	run_tests();
+    	return 0;
+    }
     else
     {
 		printf( "network next proxy\n" );    	
+    }
+
+ 	signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
+
+    if ( !proxy_init() )
+    {
+        printf( "error: failed to initialize\n" );
+        exit(1);
     }
 
     // create slot sockets in a flat array
