@@ -107,6 +107,7 @@ struct proxy_config_t
 	proxy_address_t next_bind_address;
 	proxy_address_t proxy_address;
 	proxy_address_t server_address;
+	proxy_address_t next_address;
 };
 
 static proxy_config_t config;
@@ -146,8 +147,9 @@ bool proxy_init()
 	memset( &config.next_bind_address, 0, sizeof(proxy_address_t) );
 	config.next_bind_address.type = PROXY_ADDRESS_IPV4;
 
-	proxy_address_parse( &config.server_address, proxy_address );
+	proxy_address_parse( &config.proxy_address, proxy_address );
 	proxy_address_parse( &config.server_address, server_address );
+	proxy_address_parse( &config.next_address, next_public_address );
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.socket_send_buffer_size = 10000000;
@@ -1150,7 +1152,11 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	while ( true )
 	{
-		uint8_t packet_data[config.max_packet_size];
+		const int prefix = 7;
+
+		uint8_t buffer[prefix + config.max_packet_size];
+
+		uint8_t * packet_data = buffer + prefix;
 
 		proxy_address_t from;
 
@@ -1255,8 +1261,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 			if ( !proxy_basic_packet_filter( packet_data, packet_bytes ) )
 			{
-				// todo
-				printf( "basic packet filter dropped packet\n" );
+				debug_printf( "basic packet filter dropped packet\n" );
 				continue;
 			}
 
@@ -1277,9 +1282,20 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 					break;
             }
             
-            // todo: process network next packets
-            
-            (void) packet_type;
+            packet_data = buffer;
+            packet_bytes += prefix;
+
+            packet_data[0] = packet_type;
+            packet_data[1] = from.data.ipv4[0];
+            packet_data[2] = from.data.ipv4[1];
+            packet_data[3] = from.data.ipv4[2];
+            packet_data[4] = from.data.ipv4[3];
+            packet_data[5] = uint8_t( from.port >> 8 );
+            packet_data[6] = uint8_t( from.port );
+
+            printf( "forwarding network next packet: %d bytes\n", packet_bytes );
+
+			proxy_platform_socket_send_packet( thread_data->socket, &config.next_address, packet_data, packet_bytes );
 		}
 	}
 

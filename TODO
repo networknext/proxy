@@ -48,23 +48,58 @@ DONE
 
 	Update all code in the client and server to use the new way of reading packets.
 
-TODO
-
-	--------------
-
 	Forward network next packets to the next thread, prefixed by the packet type, client address ipv4 and port number (7 bytes total).
 
+	Verify that the packet gets forward to next.
+
+	Verify that the client address is passed to next.
+
+	All confirmed. At this point the flow from thread sockets -> network next socket is working.
+
+TODO
+
+	Extend next server to have two internal methods:
+
+		1. send_packet_to_address
+		2. send_packet_to_backend
+
+	This way we can easily override the send packet to address, while leaving the send packets to backend alone.
+
 	--------------
 
-	Implement callback to send packets to an address on behalf of the server.
+	Implement callback for sending packets to an address for the next_server_t
+
+	Make sure to include a void* data for the callback.
+
+	--------------
+
+	Add a command from server to internal server when the callback is set.
+
+	Handle the command and setup the callback when received.
+
+	--------------
+
+	Verify that the server and server internal use the callback to send packets to an address, not the native socket (if the callback returns true, it sent the packet).
+
+	--------------
+
+	Implement callback to send packets to an address on behalf of the server in proxy.cpp
+
+	Set the callback on the server.
+
+	Verify 
 
 	Use this callback to implement next server sending non-backend packets via proxy sockets w. the hash of the client address being used to index into the proxy socket array.
 
 	--------------
 
-	Implement some sort of short circuit callback when a direct or network next packet is received from the client.
+	Implement some sort of short circuit callback when a direct or network next payload is received from the client.
 
 	This is important so the packet doesn't get an additional 16.67ms of latency added with frame quantization in the next thread.
+
+	Implement this callback to forward packets immediately to the server address, from the appropriate client slot address.
+
+	(Will need to work out how to get the correct socket for a given client...)
 
 	--------------
 
@@ -88,7 +123,9 @@ TODO
 
 	--------------
 
-	SDK 5 needs a passthrough only direct mode. Otherwise, we will need the multiple network next proxy server thread functionality for PoC.
+	SDK 5 needs a passthrough only direct mode. 
+
+	Otherwise, we will need the multiple network next proxy server thread functionality for PoC.
 
 	--------------
 

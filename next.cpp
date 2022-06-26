@@ -13825,12 +13825,18 @@ void next_server_internal_process_passthrough_packet( next_server_internal_t * s
 
 void packet_receive_callback( next_address_t * from, uint8_t * packet_data, int * begin, int * end )
 {
+	// todo
+	printf( "next packet received callback\n" );
+
 	// ignore any packet that's too short to be valid
 
 	const int packet_bytes = *end - *begin;
 
-	if ( packet_bytes < 7 )
+	printf( "packet bytes = %d\n", packet_bytes );
+
+	if ( packet_bytes <= 7 )
 	{
+		printf( "packet too small\n" );
 		*begin = 0;
 		*end = 0;
 		return;
@@ -13838,6 +13844,7 @@ void packet_receive_callback( next_address_t * from, uint8_t * packet_data, int 
 
 	// ignore packets that aren't forwarded to us from the proxy
 
+	/*
 	const uint8_t packet_type = packet_data[0];
 
 	switch ( packet_type )
@@ -13855,6 +13862,7 @@ void packet_receive_callback( next_address_t * from, uint8_t * packet_data, int 
 		default:
 			return;
 	}
+	*/
 
 	// set the from address to the address that sent the packet to the proxy
 
@@ -13864,6 +13872,10 @@ void packet_receive_callback( next_address_t * from, uint8_t * packet_data, int 
 	from->data.ipv4[2] = packet_data[3];
 	from->data.ipv4[3] = packet_data[4];
 	from->port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
+
+	// todo
+	char string_buffer[1024];
+	printf( "client address is %s\n", next_address_to_string( from, string_buffer ) );
 
 	// adjust begin index forward
 
@@ -13883,6 +13895,9 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
     next_address_t from;
 
     const int packet_bytes = next_platform_socket_receive_packet( server->socket, &from, packet_data, NEXT_MAX_PACKET_BYTES );
+
+    if ( packet_bytes == 0 )
+    	return;
 
     next_assert( packet_bytes >= 0 );
 
