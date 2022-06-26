@@ -981,7 +981,7 @@ extern void next_tests();
 
 void run_tests()
 {
-	next_quiet( true );
+	// next_quiet( true );
 
     next_config_t next_config;
     next_default_config( &next_config );

@@ -483,7 +483,7 @@ void next_quiet( NEXT_BOOL flag )
     log_quiet = flag;
 }
 
-static int log_level = NEXT_LOG_LEVEL_INFO;
+static int log_level = NEXT_LOG_LEVEL_DEBUG; //todo INFO;
 
 void next_log_level( int level )
 {
@@ -3925,6 +3925,13 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
     next_assert( packet_data );
     next_assert( packet_object );
 
+    next::ReadStream stream( packet_data, end );
+
+	uint8_t dummy[begin];
+	serialize_bytes( stream, dummy, begin );
+	// todo
+	printf( "dummy read %d bytes\n", begin );
+
     if ( signed_packet && signed_packet[packet_id] )
     {
         next_assert( sign_public_key );
@@ -3940,38 +3947,43 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
         next_crypto_sign_state_t state;
         next_crypto_sign_init( &state );
         next_crypto_sign_update( &state, &packet_id, 1 );
-        next_crypto_sign_update( &state, packet_data + begin, end - NEXT_CRYPTO_SIGN_BYTES );
+        next_crypto_sign_update( &state, packet_data + begin, packet_bytes - NEXT_CRYPTO_SIGN_BYTES );
         if ( next_crypto_sign_final_verify( &state, packet_data + end - NEXT_CRYPTO_SIGN_BYTES, sign_public_key ) != 0 )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "signed packet did not verify" );
             return NEXT_ERROR;
         }
+
+        printf( "signed packet verified\n" );
     }
 
     if ( encrypted_packet && encrypted_packet[packet_id] )
     {
-    	// todo
-    	/*
         next_assert( !( signed_packet && signed_packet[packet_id] ) );
 
         next_assert( sequence );
         next_assert( encrypt_private_key );
         next_assert( replay_protection );
 
-        if ( packet_bytes <= (int) ( 8 + NEXT_CRYPTO_AEAD_CHACHA20POLY1305_ABYTES + 2 ) )
+        const int packet_bytes = end - begin;
+
+        if ( packet_bytes <= (int) ( 8 + NEXT_CRYPTO_AEAD_CHACHA20POLY1305_ABYTES ) )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "encrypted packet is too small to be valid" );
             return NEXT_ERROR;
         }
 
-        const uint8_t * p = &packet_data[16];
+        const uint8_t * p = packet_data + begin;
 
         *sequence = next_read_uint64( &p );
 
-        uint8_t * additional = packet_data;
-        uint8_t * nonce = packet_data + 16;
-        uint8_t * message = packet_data + 16 + 8;
-        int message_length = packet_bytes - ( 1 + 15 + 8 + 2 );
+        printf( "sequence = %" PRId64 "\n", *sequence );
+
+        uint8_t * nonce = packet_data + begin;
+        uint8_t * message = packet_data + begin + 8;
+        uint8_t * additional = &packet_id;
+
+        int message_length = end - ( begin + 8 );
 
         unsigned long long decrypted_bytes;
 
@@ -3988,6 +4000,7 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
         next_assert( decrypted_bytes == uint64_t(message_length) - NEXT_CRYPTO_AEAD_CHACHA20POLY1305_ABYTES );
 
         serialize_bytes( stream, dummy, 8 );
+        printf( "dummy read 8 bytes\n" );
 
         uint64_t clean_sequence = next_clean_sequence( *sequence );
 
@@ -3996,19 +4009,9 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
             next_printf( NEXT_LOG_LEVEL_DEBUG, "packet already received: %" PRIu64 " vs. %" PRIu64, clean_sequence, replay_protection->most_recent_sequence );
             return NEXT_ERROR;
         }
-        */
+
+        printf( "encrypted packet decrypted\n" );
     }
-
-    // todo
-    (void) sequence;
-    (void) encrypt_private_key;
-    (void) replay_protection;
-
-    /*
-    next::ReadStream stream( packet_data, end );
-
-	uint8_t dummy[begin-end];
-	serialize_bytes( stream, dummy, begin );
 
     switch ( packet_id )
     {
@@ -4079,7 +4082,6 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
         default:
             return NEXT_ERROR;
     }
-    */
 
     return (int) packet_id;
 }
@@ -10885,12 +10887,14 @@ int next_read_backend_packet( uint8_t packet_id, uint8_t * packet_data, int begi
 
     uint8_t dummy[begin];
     serialize_bytes( stream, dummy, begin );
-
-    const int packet_bytes = end - begin;
+    // todo
+    printf( "read %d dummy bytes\n", begin );
 
     if ( signed_packet && signed_packet[packet_id] )
     {
         next_assert( sign_public_key );
+
+	    const int packet_bytes = end - begin;
 
         if ( packet_bytes < int( NEXT_CRYPTO_SIGN_BYTES ) )
         {
@@ -10901,12 +10905,15 @@ int next_read_backend_packet( uint8_t packet_id, uint8_t * packet_data, int begi
         next_crypto_sign_state_t state;
         next_crypto_sign_init( &state );
         next_crypto_sign_update( &state, &packet_id, 1 );
-        next_crypto_sign_update( &state, packet_data + begin, size_t(packet_bytes) - NEXT_CRYPTO_SIGN_BYTES );
-        if ( next_crypto_sign_final_verify( &state, packet_data + packet_bytes - NEXT_CRYPTO_SIGN_BYTES, sign_public_key ) != 0 )
+        next_crypto_sign_update( &state, packet_data + begin, packet_bytes - NEXT_CRYPTO_SIGN_BYTES );
+        if ( next_crypto_sign_final_verify( &state, packet_data + end - NEXT_CRYPTO_SIGN_BYTES, sign_public_key ) != 0 )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "signed backend packet did not verify" );
             return NEXT_ERROR;
         }
+
+        // todo
+        printf( "signed packet verified\n" );
     }
 
     switch ( packet_id )
@@ -20878,6 +20885,7 @@ void next_test()
 {
     // while ( true )
     {
+    	#if 0
         RUN_TEST( test_time );
         RUN_TEST( test_endian );
         RUN_TEST( test_base64 );
@@ -20929,7 +20937,11 @@ void next_test()
         RUN_TEST( test_address_data_ipv6 );
 #endif // #if defined(NEXT_PLATFORM_HAS_IPV6)
         RUN_TEST( test_direct_packet );
+        
+         #endif // #if 0
+
         RUN_TEST( test_direct_ping_packet );
+
         // todo
         /*
         RUN_TEST( test_direct_pong_packet );
