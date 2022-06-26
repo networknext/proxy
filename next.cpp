@@ -3929,8 +3929,6 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
 
 	uint8_t dummy[begin];
 	serialize_bytes( stream, dummy, begin );
-	// todo
-	printf( "dummy read %d bytes\n", begin );
 
     if ( signed_packet && signed_packet[packet_id] )
     {
@@ -3953,8 +3951,6 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
             next_printf( NEXT_LOG_LEVEL_DEBUG, "signed packet did not verify" );
             return NEXT_ERROR;
         }
-
-        printf( "signed packet verified\n" );
     }
 
     if ( encrypted_packet && encrypted_packet[packet_id] )
@@ -3977,8 +3973,6 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
 
         *sequence = next_read_uint64( &p );
 
-        printf( "sequence = %" PRId64 "\n", *sequence );
-
         uint8_t * nonce = packet_data + begin;
         uint8_t * message = packet_data + begin + 8;
         uint8_t * additional = &packet_id;
@@ -4000,7 +3994,6 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
         next_assert( decrypted_bytes == uint64_t(message_length) - NEXT_CRYPTO_AEAD_CHACHA20POLY1305_ABYTES );
 
         serialize_bytes( stream, dummy, 8 );
-        printf( "dummy read 8 bytes\n" );
 
         uint64_t clean_sequence = next_clean_sequence( *sequence );
 
@@ -4009,8 +4002,6 @@ int next_read_packet( uint8_t packet_id, uint8_t * packet_data, int begin, int e
             next_printf( NEXT_LOG_LEVEL_DEBUG, "packet already received: %" PRIu64 " vs. %" PRIu64, clean_sequence, replay_protection->most_recent_sequence );
             return NEXT_ERROR;
         }
-
-        printf( "encrypted packet decrypted\n" );
     }
 
     switch ( packet_id )
@@ -10887,8 +10878,6 @@ int next_read_backend_packet( uint8_t packet_id, uint8_t * packet_data, int begi
 
     uint8_t dummy[begin];
     serialize_bytes( stream, dummy, begin );
-    // todo
-    printf( "read %d dummy bytes\n", begin );
 
     if ( signed_packet && signed_packet[packet_id] )
     {
@@ -10911,10 +10900,7 @@ int next_read_backend_packet( uint8_t packet_id, uint8_t * packet_data, int begi
             next_printf( NEXT_LOG_LEVEL_DEBUG, "signed backend packet did not verify" );
             return NEXT_ERROR;
         }
-
-        // todo
-        printf( "signed packet verified\n" );
-    }
+	}
 
     switch ( packet_id )
     {

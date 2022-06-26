@@ -870,7 +870,7 @@ int session_table_get( session_table_t * table, const proxy_address_t * key )
 
 void test_session_table()
 {
-	printf( "test_session_table\n" );
+	printf( "    test_session_table\n" );
 
 	session_table_t * session_table = session_table_create();
 
@@ -981,7 +981,7 @@ extern void next_tests();
 
 void run_tests()
 {
-	// next_quiet( true );
+	next_quiet( true );
 
     next_config_t next_config;
     next_default_config( &next_config );
@@ -1431,8 +1431,10 @@ int main( int argc, char * argv[] )
     }
     else if ( test_mode )
     {
-		printf( "running tests\n" );
+		printf( "\nrunning tests:\n\n" );
     	run_tests();
+    	printf( "\n" );
+    	fflush( stdout );
     	return 0;
     }
     else
