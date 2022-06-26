@@ -44,9 +44,11 @@ DONE
 
 	Now update next_read_packet to use begin/end.
 
+	Update all unit tests to the new way of reading packets.
+
 TODO
 
-	Update all unit tests to the new way of reading packets.
+	Update all code in the client and server to use the new way of reading packets.
 
 	--------------
 
