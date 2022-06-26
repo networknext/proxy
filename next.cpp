@@ -11992,7 +11992,7 @@ void next_server_internal_destroy( next_server_internal_t * server );
 
 static next_platform_thread_return_t NEXT_PLATFORM_THREAD_FUNC next_server_internal_thread_function( void * context );
 
-next_server_internal_t * next_server_internal_create( void * context, const char * server_address_string, const char * bind_address_string, const char * datacenter_string, void (*wake_up_callback)( void * context ) )
+next_server_internal_t * next_server_internal_create( void * context, const char * server_address_string, const char * bind_address_string, const char * datacenter_string )
 {
 #if !NEXT_DEVELOPMENT
     next_printf( NEXT_LOG_LEVEL_INFO, "server sdk version is %s", NEXT_VERSION_FULL );
@@ -12040,8 +12040,6 @@ next_server_internal_t * next_server_internal_create( void * context, const char
     }
 
     memset( server, 0, sizeof( next_server_internal_t) );
-
-    server->wake_up_callback = wake_up_callback;
 
     next_server_internal_initialize_sentinels( server );
 
@@ -15106,7 +15104,10 @@ void next_server_verify_sentinels( next_server_t * server )
 
 void next_server_destroy( next_server_t * server );
 
-next_server_t * next_server_create( void * context, const char * server_address, const char * bind_address, const char * datacenter, void (*packet_received_callback)( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes ), void (*wake_up_callback)( void * context ) )
+// todo
+// void (*wake_up_callback)( void * context )
+
+next_server_t * next_server_create( void * context, const char * server_address, const char * bind_address, const char * datacenter, void (*packet_received_callback)( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes ) )
 {
     next_assert( server_address );
     next_assert( bind_address );
@@ -15122,7 +15123,7 @@ next_server_t * next_server_create( void * context, const char * server_address,
 
     server->context = context;
 
-    server->internal = next_server_internal_create( context, server_address, bind_address, datacenter, wake_up_callback );
+    server->internal = next_server_internal_create( context, server_address, bind_address, datacenter );
     if ( !server->internal )
     {
         next_printf( NEXT_LOG_LEVEL_ERROR, "server could not create internal server" );

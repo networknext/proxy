@@ -1508,7 +1508,7 @@ int main( int argc, char * argv[] )
 	        exit(1);
 	    }
 
-	    next_server = next_server_create( NULL, next_public_address, next_bind_address, next_datacenter, next_packet_received, NULL );
+	    next_server = next_server_create( NULL, next_public_address, next_bind_address, next_datacenter, next_packet_received );
 	    if ( next_server == NULL )
 	    {
 	        printf( "error: failed to create next server\n" );
