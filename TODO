@@ -32,17 +32,21 @@ DONE
 
 	Adding an extra next socket per-next thread is a bad idea. Use the network next socket native. It's already setup to work with multiple threads (internal receive thread, main thread for sends etc.)
 
-TODO
-
-	--------------
-
 	Network Next server needs a callback to optionally process a packet, adjust the "from", and change start and size.
 
 	This callback will be called when packets are received in the receive thread, and will make it possible for me to implement the proxy address prefix in a generic way without hardcoding "proxy mode" into the next server.
 
+	Sketched out the callback roughly.
+
+TODO
+
 	--------------
 
-	Forward network next packets to the next thread, prefixed by the client address.
+	Now actually integrate the callback so subsequent packet reads know to skip forward, and potentially adjust bytes down depending on begin/end.
+
+	--------------
+
+	Forward network next packets to the next thread, prefixed by the packet type, client address ipv4 and port number (7 bytes total).
 
 	--------------
 

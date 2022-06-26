@@ -6315,7 +6315,6 @@ struct next_client_internal_t
 {
     NEXT_DECLARE_SENTINEL(0)
 
-    void (*wake_up_callback)( void * context );
     void * context;
     next_queue_t * command_queue;
     next_queue_t * notify_queue;
@@ -6486,7 +6485,7 @@ void next_client_internal_verify_sentinels( next_client_internal_t * client )
 
 void next_client_internal_destroy( next_client_internal_t * client );
 
-next_client_internal_t * next_client_internal_create( void * context, const char * bind_address_string, void (*wake_up_callback)( void * context ) )
+next_client_internal_t * next_client_internal_create( void * context, const char * bind_address_string )
 {
 #if !NEXT_DEVELOPMENT
     next_printf( NEXT_LOG_LEVEL_INFO, "client sdk version is %s", NEXT_VERSION_FULL );
@@ -6509,8 +6508,6 @@ next_client_internal_t * next_client_internal_create( void * context, const char
     }
 
     memset( client, 0, sizeof( next_client_internal_t) );
-
-    client->wake_up_callback = wake_up_callback;
 
     next_client_internal_initialize_sentinels( client );
 
@@ -7039,11 +7036,6 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
         }
         client->counters[NEXT_CLIENT_COUNTER_PACKET_RECEIVED_DIRECT]++;
 
-        if ( client->wake_up_callback )
-        {
-            client->wake_up_callback( client->context );
-        }
-
         return;
     }
 
@@ -7317,11 +7309,6 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
 
         client->counters[NEXT_CLIENT_COUNTER_PACKET_RECEIVED_NEXT]++;
 
-        if ( client->wake_up_callback )
-        {
-            client->wake_up_callback( client->context );
-        }
-
         return;
     }
 
@@ -7593,11 +7580,6 @@ void next_client_internal_process_passthrough_packet( next_client_internal_t * c
             next_queue_push( client->notify_queue, notify );
         }
         client->counters[NEXT_CLIENT_COUNTER_PACKET_RECEIVED_PASSTHROUGH]++;
-    }
-
-    if ( client->wake_up_callback )
-    {
-        client->wake_up_callback( client->context );
     }
 }
 
@@ -8331,7 +8313,7 @@ void next_client_verify_sentinels( next_client_t * client )
 
 void next_client_destroy( next_client_t * client );
 
-next_client_t * next_client_create( void * context, const char * bind_address, void (*packet_received_callback)( next_client_t * client, void * context, const struct next_address_t * from, const uint8_t * packet_data, int packet_bytes ), void (*wake_up_callback)( void * context ) )
+next_client_t * next_client_create( void * context, const char * bind_address, void (*packet_received_callback)( next_client_t * client, void * context, const struct next_address_t * from, const uint8_t * packet_data, int packet_bytes ) )
 {
     next_assert( bind_address );
     next_assert( packet_received_callback );
@@ -8347,7 +8329,7 @@ next_client_t * next_client_create( void * context, const char * bind_address, v
     client->context = context;
     client->packet_received_callback = packet_received_callback;
 
-    client->internal = next_client_internal_create( client->context, bind_address, wake_up_callback );
+    client->internal = next_client_internal_create( client->context, bind_address );
     if ( !client->internal )
     {
         next_printf( NEXT_LOG_LEVEL_ERROR, "client could not create internal client" );
@@ -11095,7 +11077,9 @@ struct next_server_internal_t
 {
     NEXT_DECLARE_SENTINEL(0)
 
-    void (*wake_up_callback)( void * context );
+    // todo
+    // void (*wake_up_callback)( void * context );
+
     void * context;
     int state;
     uint64_t customer_id;
@@ -12944,11 +12928,6 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             next_queue_push( server->notify_queue, notify );
         }
 
-        if ( server->wake_up_callback )
-        {
-            server->wake_up_callback( server->context );
-        }
-
         return;
     }
 
@@ -13602,11 +13581,6 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             next_queue_push( server->notify_queue, notify );
         }
 
-        if ( server->wake_up_callback )
-        {
-            server->wake_up_callback( server->context );
-        }
-
         return;
     }
 
@@ -13842,12 +13816,60 @@ void next_server_internal_process_passthrough_packet( next_server_internal_t * s
             next_queue_push( server->notify_queue, notify );
         }
     }
-
-    if ( server->wake_up_callback )
-    {
-        server->wake_up_callback( server->context );
-    }
 }
+
+// ------------------------------
+
+// todo: this needs to be converted to a real callback and moved to proxy.cpp5
+
+void packet_receive_callback( next_address_t * from, uint8_t * packet_data, int * begin_index, int * end_index )
+{
+	// ignore any packet that's too short to be valid
+
+	const int packet_bytes = *end_index - *begin_index;
+
+	if ( packet_bytes < 7 )
+	{
+		*begin_index = 0;
+		*end_index = 0;
+		return;
+	}
+
+	// ignore packets that aren't forwarded to us from the proxy
+
+	const uint8_t packet_type = packet_data[0];
+
+	switch ( packet_type )
+	{
+		case NEXT_DIRECT_PACKET:
+		case NEXT_DIRECT_PING_PACKET:
+		case NEXT_UPGRADE_RESPONSE_PACKET:
+		case NEXT_ROUTE_REQUEST_PACKET:
+		case NEXT_CLIENT_TO_SERVER_PACKET:
+		case NEXT_PING_PACKET:
+		case NEXT_CONTINUE_REQUEST_PACKET:
+		case NEXT_CLIENT_STATS_PACKET:
+		case NEXT_ROUTE_UPDATE_ACK_PACKET:
+			break;
+		default:
+			return;
+	}
+
+	// set the from address to the address that sent the packet to the proxy
+
+	from->type = NEXT_ADDRESS_IPV4;
+	from->data.ipv4[0] = packet_data[1];
+	from->data.ipv4[1] = packet_data[2];
+	from->data.ipv4[2] = packet_data[3];
+	from->data.ipv4[3] = packet_data[4];
+	from->port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
+
+	// adjust begin index forward
+
+	*begin_index += 7;
+}
+
+// ------------------------------
 
 void next_server_internal_block_and_receive_packet( next_server_internal_t * server )
 {
@@ -13863,13 +13885,20 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
 
     next_assert( packet_bytes >= 0 );
 
-    if ( packet_bytes == 0 )
+    // todo: hack fake callback for now
+    int begin_index = 0;
+    int end_index = packet_bytes;
+    packet_receive_callback( &from, packet_data, &begin_index, &end_index );
+
+    if ( end_index - begin_index <= 0 )
         return;
 
 #if NEXT_DEVELOPMENT
     if ( next_packet_loss && ( rand() % 10 ) == 0 )
          return;
 #endif // #if NEXT_DEVELOPMENT
+
+    // todo: we now need to pass up begin/end index up -- because it's needed for skip
 
     if ( packet_data[0] != NEXT_PASSTHROUGH_PACKET )
     {
@@ -15103,9 +15132,6 @@ void next_server_verify_sentinels( next_server_t * server )
 }
 
 void next_server_destroy( next_server_t * server );
-
-// todo
-// void (*wake_up_callback)( void * context )
 
 next_server_t * next_server_create( void * context, const char * server_address, const char * bind_address, const char * datacenter, void (*packet_received_callback)( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes ) )
 {
@@ -20741,77 +20767,6 @@ void test_passthrough_packets()
     next_server_destroy( server );
 }
 
-static bool test_wake_up_client_woke_up = false;
-static bool test_wake_up_server_woke_up = false;
-
-void test_wake_up_client_callback( void * context )
-{
-    (void) context;
-    test_wake_up_client_woke_up = true;
-}
-
-void test_wake_up_server_callback( void * context )
-{
-    (void) context;
-    test_wake_up_server_woke_up = true;
-}
-
-void test_wake_up_server_packet_received( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
-{
-    (void) context;
-    next_server_send_packet( server, from, packet_data, packet_bytes );
-}
-
-void test_wake_up_client_packet_received( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
-{
-    (void) server;
-    (void) context;
-    (void) from;
-    (void) packet_data;
-    (void) packet_bytes;
-}
-
-void test_wake_up()
-{
-    next_server_t * server = next_server_create( NULL, "127.0.0.1", "0.0.0.0:12345", "local", test_wake_up_server_packet_received, test_wake_up_server_callback );
-
-    next_check( server );
-
-    next_client_t * client = next_client_create( NULL, "0.0.0.0:0", test_client_packet_received_callback, test_wake_up_client_callback );
-
-    next_check( client );
-
-    next_check( next_client_port( client ) != 0 );
-
-    next_client_open_session( client, "127.0.0.1:12345" );
-
-    uint8_t packet[256];
-    memset( packet, 0, sizeof(packet) );
-
-    for ( int i = 0; i < 10000; ++i )
-    {
-        next_client_send_packet( client, packet, sizeof(packet) );
-
-        next_client_update( client );
-
-        next_server_update( server );
-
-        if ( test_wake_up_client_woke_up && test_wake_up_server_woke_up )
-            break;
-    }
-
-    next_client_close_session( client );
-
-    next_client_destroy( client );
-
-    next_server_flush( server );
-
-    next_server_destroy( server );
-
-    next_check( test_wake_up_client_woke_up );
-    next_check( test_wake_up_server_woke_up );
-}
-
 #endif // #if defined(NEXT_PLATFORM_CAN_RUN_SERVER)
 
 #define RUN_TEST( test_function )                                           \
@@ -20929,9 +20884,6 @@ void next_test()
 #if defined(NEXT_PLATFORM_CAN_RUN_SERVER)
         RUN_TEST( test_passthrough_packets );
 #endif // #if defined(NEXT_PLATFORM_CAN_RUN_SERVER)
-#if (NEXT_PLATFORM != NEXT_PLATFORM_XBOX_ONE && NEXT_PLATFORM != NEXT_PLATFORM_XBOX_SERIES_X) || (NEXT_PLATFORM != NEXT_PLATFORM_GDK)
-        RUN_TEST( test_wake_up );
-#endif // #if (NEXT_PLATFORM != NEXT_PLATFORM_XBOX_ONE && NEXT_PLATFORM != NEXT_PLATFORM_XBOX_SERIES_X) || (NEXT_PLATFORM != NEXT_PLATFORM_GDK)
     }
 }
 
