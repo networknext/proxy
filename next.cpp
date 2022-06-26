@@ -17787,9 +17787,6 @@ void test_direct_ping_packet()
     }
 }
 
-// todo
-#if 0
-
 void test_direct_pong_packet()
 {
     uint8_t packet_data[NEXT_MAX_PACKET_BYTES];
@@ -17826,7 +17823,9 @@ void test_direct_pong_packet()
 
         NextDirectPongPacket out;
         uint64_t out_sequence = 0;
-        int packet_type = next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+        int packet_type = next_read_packet( NEXT_DIRECT_PONG_PACKET, packet_data, begin, end, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection );
 
         next_check( packet_type == NEXT_DIRECT_PONG_PACKET );
 
@@ -17874,7 +17873,10 @@ void test_upgrade_request_packet()
         next_check( next_basic_packet_filter( packet_data, packet_bytes ) );
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
-        int packet_type = next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, NULL, NULL, public_key, NULL, NULL );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+
+        int packet_type = next_read_packet( NEXT_UPGRADE_REQUEST_PACKET, packet_data, begin, end, &out, next_signed_packets, NULL, NULL, public_key, NULL, NULL );
 
         next_check( packet_type == NEXT_UPGRADE_REQUEST_PACKET );
 
@@ -17920,7 +17922,10 @@ void test_upgrade_response_packet()
         next_check( next_basic_packet_filter( packet_data, packet_bytes ) );
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
-        int packet_type = next_read_packet( packet_data, packet_bytes, &out, NULL, NULL, NULL, NULL, NULL, NULL );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+
+        int packet_type = next_read_packet( NEXT_UPGRADE_RESPONSE_PACKET, packet_data, begin, end, &out, NULL, NULL, NULL, NULL, NULL, NULL );
 
         next_check( packet_type == NEXT_UPGRADE_RESPONSE_PACKET );
 
@@ -17966,7 +17971,10 @@ void test_upgrade_confirm_packet()
         next_check( next_basic_packet_filter( packet_data, packet_bytes ) );
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
-        int packet_type = next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, NULL, NULL, public_key, NULL, NULL );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+
+        int packet_type = next_read_packet( NEXT_UPGRADE_CONFIRM_PACKET, packet_data, begin, end, &out, next_signed_packets, NULL, NULL, public_key, NULL, NULL );
 
         next_check( packet_type == NEXT_UPGRADE_CONFIRM_PACKET );
 
@@ -18399,7 +18407,9 @@ void test_client_stats_packet_with_near_relays()
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
         uint64_t out_sequence = 0;
-        next_check( next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_CLIENT_STATS_PACKET );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+        next_check( next_read_packet( NEXT_CLIENT_STATS_PACKET, packet_data, begin, end, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_CLIENT_STATS_PACKET );
 
         next_check( in_sequence == out_sequence + 1 );
         next_check( in.reported == out.reported );
@@ -18483,7 +18493,9 @@ void test_client_stats_packet_without_near_relays()
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
         uint64_t out_sequence = 0;
-        next_check( next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_CLIENT_STATS_PACKET );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+        next_check( next_read_packet( NEXT_CLIENT_STATS_PACKET, packet_data, begin, end, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_CLIENT_STATS_PACKET );
 
         next_check( in_sequence == out_sequence + 1 );
         next_check( in.reported == out.reported );
@@ -18568,7 +18580,9 @@ void test_route_update_packet_direct()
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
         uint64_t out_sequence = 0;
-        next_check( next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_ROUTE_UPDATE_PACKET );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+        next_check( next_read_packet( NEXT_ROUTE_UPDATE_PACKET, packet_data, begin, end, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_ROUTE_UPDATE_PACKET );
 
         next_check( in_sequence == out_sequence + 1 );
         next_check( in.sequence == out.sequence );
@@ -18652,7 +18666,9 @@ void test_route_update_packet_new_route()
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
         uint64_t out_sequence = 0;
-        next_check( next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_ROUTE_UPDATE_PACKET );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+        next_check( next_read_packet( NEXT_ROUTE_UPDATE_PACKET, packet_data, begin, end, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_ROUTE_UPDATE_PACKET );
 
         next_check( in_sequence == out_sequence + 1 );
         next_check( in.sequence == out.sequence );
@@ -18732,7 +18748,9 @@ void test_route_update_packet_continue_route()
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
         uint64_t out_sequence = 0;
-        next_check( next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_ROUTE_UPDATE_PACKET );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+        next_check( next_read_packet( NEXT_ROUTE_UPDATE_PACKET, packet_data, begin, end, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_ROUTE_UPDATE_PACKET );
 
         next_check( in_sequence == out_sequence + 1 );
         next_check( in.sequence == out.sequence );
@@ -18790,7 +18808,9 @@ void test_route_update_ack_packet()
         next_check( next_advanced_packet_filter( packet_data, magic, from_address, 4, from_port, to_address, 4, to_port, packet_bytes ) );
 
         uint64_t out_sequence = 0;
-        next_check( next_read_packet( packet_data, packet_bytes, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_ROUTE_UPDATE_ACK_PACKET );
+        const int begin = 16;
+        const int end = packet_bytes - 2;
+        next_check( next_read_packet( NEXT_ROUTE_UPDATE_ACK_PACKET, packet_data, begin, end, &out, next_signed_packets, next_encrypted_packets, &out_sequence, NULL, private_key, &replay_protection ) == NEXT_ROUTE_UPDATE_ACK_PACKET );
 
         next_check( in_sequence == out_sequence + 1 );
         next_check( in.sequence == out.sequence );
@@ -18875,9 +18895,6 @@ void test_relay_pong_packet()
         next_check( read_pong_session_id == pong_session_id );
     }
 }
-
-// todo
-#endif
 
 void test_server_init_request_packet()
 {
@@ -20871,7 +20888,6 @@ void next_test()
 {
     // while ( true )
     {
-    	#if 0
         RUN_TEST( test_time );
         RUN_TEST( test_endian );
         RUN_TEST( test_base64 );
@@ -20902,10 +20918,7 @@ void next_test()
         RUN_TEST( test_client_ipv6 );
         RUN_TEST( test_server_ipv6 );
 #endif // #if defined(NEXT_PLATFORM_HAS_IPV6)
-        // todo
-        /*
         RUN_TEST( test_header );
-        */
         RUN_TEST( test_route_token );
         RUN_TEST( test_continue_token );
         RUN_TEST( test_upgrade_token );
@@ -20923,13 +20936,7 @@ void next_test()
         RUN_TEST( test_address_data_ipv6 );
 #endif // #if defined(NEXT_PLATFORM_HAS_IPV6)
         RUN_TEST( test_direct_packet );
-        
-         #endif // #if 0
-
         RUN_TEST( test_direct_ping_packet );
-
-        // todo
-        /*
         RUN_TEST( test_direct_pong_packet );
         RUN_TEST( test_upgrade_request_packet );
         RUN_TEST( test_upgrade_response_packet );
@@ -20950,7 +20957,6 @@ void next_test()
         RUN_TEST( test_route_update_ack_packet );
         RUN_TEST( test_relay_ping_packet );
         RUN_TEST( test_relay_pong_packet );
-        */
         RUN_TEST( test_server_init_request_packet );
         RUN_TEST( test_server_init_response_packet );
         RUN_TEST( test_server_update_packet );

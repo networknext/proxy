@@ -42,9 +42,11 @@ DONE
 
 	Update read backend packet function to use begin/end.
 
+	Now update next_read_packet to use begin/end.
+
 TODO
 
-	Now update next_read_packet to use begin/end.
+	Update all unit tests to the new way of reading packets.
 
 	--------------
 
