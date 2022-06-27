@@ -58,6 +58,12 @@ DONE
 
 TODO
 
+	--------------
+
+	Setup the packet receive callback end-to-end for the server w. command to internal thread.
+
+	--------------
+
 	Extend next server to have two internal methods:
 
 		1. send_packet_to_address

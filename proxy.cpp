@@ -1391,19 +1391,54 @@ void next_packet_received( next_server_t * server, void * context, const next_ad
     (void) packet_data;
     (void) packet_bytes;
 
-    // todo
+    // not used
+}
 
-    /*
-    next_server_send_packet( server, from, packet_data, packet_bytes );
+void next_packet_receive_callback( next_address_t * from, uint8_t * packet_data, int * begin, int * end )
+{
+	// ignore any packet that's too short to be valid
 
-    // next_printf( NEXT_LOG_LEVEL_INFO, "server received packet from client (%d bytes)", packet_bytes );
+	const int packet_bytes = *end - *begin;
 
-    if ( next_server_ready( server ) && !next_server_session_upgraded( server, from ) )
-    {
-        const char * user_id_string = "12345";
-        next_server_upgrade_session( server, from, user_id_string );
-    }
-    */
+	if ( packet_bytes <= 7 )
+	{
+		*begin = 0;
+		*end = 0;
+		return;
+	}
+
+	// ignore packet types we aren't expecting
+
+	const uint8_t packet_type = packet_data[0];
+
+	switch ( packet_type )
+	{
+		case NEXT_DIRECT_PACKET:
+		case NEXT_DIRECT_PING_PACKET:
+		case NEXT_UPGRADE_RESPONSE_PACKET:
+		case NEXT_ROUTE_REQUEST_PACKET:
+		case NEXT_CLIENT_TO_SERVER_PACKET:
+		case NEXT_PING_PACKET:
+		case NEXT_CONTINUE_REQUEST_PACKET:
+		case NEXT_CLIENT_STATS_PACKET:
+		case NEXT_ROUTE_UPDATE_ACK_PACKET:
+			break;
+		default:
+			return;
+	}
+
+	// set the from address to the address that sent the packet to the proxy
+
+	from->type = NEXT_ADDRESS_IPV4;
+	from->data.ipv4[0] = packet_data[1];
+	from->data.ipv4[1] = packet_data[2];
+	from->data.ipv4[2] = packet_data[3];
+	from->data.ipv4[3] = packet_data[4];
+	from->port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
+
+	// adjust begin index forward
+
+	*begin += 7;
 }
 
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC next_thread_function( void * data )
@@ -1564,6 +1599,8 @@ int main( int argc, char * argv[] )
 	        printf( "error: failed to create next server\n" );
 	        exit(1);
 	    }
+
+	    // todo: set packet receive callback on next server
 	}
 
     // create proxy|server threads

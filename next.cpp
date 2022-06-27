@@ -11175,6 +11175,12 @@ struct next_server_internal_t
     uint64_t num_flushed_match_data;
 
     NEXT_DECLARE_SENTINEL(11)
+
+	void (*packet_receive_callback) ( next_address_t * from, uint8_t * packet_data, int * begin, int * end );
+
+	void * packet_receive_callback_data;
+
+    NEXT_DECLARE_SENTINEL(12)
 };
 
 void next_server_internal_initialize_sentinels( next_server_internal_t * server )
@@ -13819,71 +13825,6 @@ void next_server_internal_process_passthrough_packet( next_server_internal_t * s
     }
 }
 
-// ------------------------------
-
-// todo: this needs to be converted to a real callback and moved to proxy.cpp5
-
-void packet_receive_callback( next_address_t * from, uint8_t * packet_data, int * begin, int * end )
-{
-	// todo
-	printf( "next packet received callback\n" );
-
-	// ignore any packet that's too short to be valid
-
-	const int packet_bytes = *end - *begin;
-
-	printf( "packet bytes = %d\n", packet_bytes );
-
-	if ( packet_bytes <= 7 )
-	{
-		printf( "packet too small\n" );
-		*begin = 0;
-		*end = 0;
-		return;
-	}
-
-	// ignore packets that aren't forwarded to us from the proxy
-
-	/*
-	const uint8_t packet_type = packet_data[0];
-
-	switch ( packet_type )
-	{
-		case NEXT_DIRECT_PACKET:
-		case NEXT_DIRECT_PING_PACKET:
-		case NEXT_UPGRADE_RESPONSE_PACKET:
-		case NEXT_ROUTE_REQUEST_PACKET:
-		case NEXT_CLIENT_TO_SERVER_PACKET:
-		case NEXT_PING_PACKET:
-		case NEXT_CONTINUE_REQUEST_PACKET:
-		case NEXT_CLIENT_STATS_PACKET:
-		case NEXT_ROUTE_UPDATE_ACK_PACKET:
-			break;
-		default:
-			return;
-	}
-	*/
-
-	// set the from address to the address that sent the packet to the proxy
-
-	from->type = NEXT_ADDRESS_IPV4;
-	from->data.ipv4[0] = packet_data[1];
-	from->data.ipv4[1] = packet_data[2];
-	from->data.ipv4[2] = packet_data[3];
-	from->data.ipv4[3] = packet_data[4];
-	from->port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
-
-	// todo
-	char string_buffer[1024];
-	printf( "client address is %s\n", next_address_to_string( from, string_buffer ) );
-
-	// adjust begin index forward
-
-	*begin += 7;
-}
-
-// ------------------------------
-
 void next_server_internal_block_and_receive_packet( next_server_internal_t * server )
 {
     next_server_internal_verify_sentinels( server );
@@ -13899,18 +13840,21 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
     if ( packet_bytes == 0 )
     	return;
 
-    next_assert( packet_bytes >= 0 );
+    next_assert( packet_bytes > 0 );
 
-    // todo: hack fake callback for now
     int begin = 0;
     int end = packet_bytes;
-    packet_receive_callback( &from, packet_data, &begin, &end );
 
-    next_assert( begin >= 0 );
-    next_assert( end <= NEXT_MAX_PACKET_BYTES );
+    if ( server->packet_receive_callback )
+    {
+	    server->packet_receive_callback( &from, packet_data, &begin, &end );
 
-    if ( end - begin <= 0 )
-        return;
+	    next_assert( begin >= 0 );
+	    next_assert( end <= NEXT_MAX_PACKET_BYTES );
+
+	    if ( end - begin <= 0 )
+	        return;    	
+    }
 
 #if NEXT_DEVELOPMENT
     if ( next_packet_loss && ( rand() % 10 ) == 0 )

@@ -386,6 +386,8 @@ NEXT_EXPORT_FUNC void next_server_match( struct next_server_t * server, const st
 
 NEXT_EXPORT_FUNC void next_server_flush( struct next_server_t * server );
 
+NEXT_EXPORT_FUNC void next_set_packet_receive_callback( void (*callback) ( next_address_t * from, uint8_t * packet_data, int * begin, int * end ), void * callback_data );
+
 // -----------------------------------------
 
 #define NEXT_MUTEX_BYTES 256
