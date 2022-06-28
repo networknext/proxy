@@ -1255,7 +1255,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, packet_data + 1, packet_bytes - 1 );
 	  		}
 		}
-		else
+		// todo
+		//else
 		{
 			// other packet types
 
@@ -1293,7 +1294,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
             packet_data[5] = uint8_t( from.port >> 8 );
             packet_data[6] = uint8_t( from.port );
 
-            printf( "forwarding network next packet: %d bytes\n", packet_bytes );
+            printf( "forwarding packet to next server: %d bytes\n", packet_bytes );
 
 			proxy_platform_socket_send_packet( thread_data->socket, &config.next_address, packet_data, packet_bytes );
 		}
@@ -1396,6 +1397,8 @@ void next_packet_received( next_server_t * server, void * context, const next_ad
 
 void next_packet_receive_callback( next_address_t * from, uint8_t * packet_data, int * begin, int * end )
 {
+	printf( "*** packet receive callback ***\n" );
+
 	// ignore any packet that's too short to be valid
 
 	const int packet_bytes = *end - *begin;
@@ -1439,6 +1442,42 @@ void next_packet_receive_callback( next_address_t * from, uint8_t * packet_data,
 	// adjust begin index forward
 
 	*begin += 7;
+}
+
+int next_send_packet_to_address_callback( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes )
+{
+	printf( "*** send packet to address callback ***\n" );
+
+	next_thread_data_t * thread_data = (next_thread_data_t*) data;
+
+	next_assert( thread_data );
+
+	uint64_t hash = hash_address( (proxy_address_t*) address );
+
+	const int index = hash % config.num_threads;
+
+	proxy_platform_socket_send_packet( thread_data->thread_sockets[index], (const proxy_address_t*) address, packet_data, packet_bytes );
+
+	return 1;
+}
+
+int next_payload_receive_callback( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes )
+{
+	printf( "*** payload receive callback ***\n" );
+
+	next_thread_data_t * thread_data = (next_thread_data_t*) data;
+
+	next_assert( thread_data );
+
+	// todo: we need a mapping from the client address to the thread number and slot number of its socket
+
+	// todo
+	(void) data;
+	(void) client_address;
+	(void) payload_data;
+	(void) payload_bytes;
+
+	return 1;
 }
 
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC next_thread_function( void * data )
@@ -1600,7 +1639,11 @@ int main( int argc, char * argv[] )
 	        exit(1);
 	    }
 
-	    // todo: set packet receive callback on next server
+	    next_server_set_packet_receive_callback( next_server, next_packet_receive_callback );
+
+	    next_server_set_send_packet_to_address_callback( next_server, next_send_packet_to_address_callback, thread_data );
+
+	    next_server_set_payload_receive_callback( next_server, next_payload_receive_callback, thread_data );
 	}
 
     // create proxy|server threads

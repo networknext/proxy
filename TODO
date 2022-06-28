@@ -56,48 +56,27 @@ DONE
 
 	All confirmed. At this point the flow from thread sockets -> network next socket is working.
 
-TODO
-
-	--------------
-
 	Setup the packet receive callback end-to-end for the server w. command to internal thread.
 
-	--------------
+	Verify the callback is set and working.
 
-	Extend next server to have two internal methods:
+	Extend next server to have send_packet_to_address methods.
 
-		1. send_packet_to_address
-		2. send_packet_to_backend
-
-	This way we can easily override the send packet to address, while leaving the send packets to backend alone.
-
-	--------------
+	Make sure all sending of packets is done via this function.
 
 	Implement callback for sending packets to an address for the next_server_t
 
 	Make sure to include a void* data for the callback.
 
-	--------------
-
 	Add a command from server to internal server when the callback is set.
 
 	Handle the command and setup the callback when received.
 
-	--------------
+	In theory, server and server internal are all setup now to have the callback for send packet to address.
 
-	Verify that the server and server internal use the callback to send packets to an address, not the native socket (if the callback returns true, it sent the packet).
+	Dummy out the callback to send packets to an address on behalf of the server in proxy.cpp
 
-	--------------
-
-	Implement callback to send packets to an address on behalf of the server in proxy.cpp
-
-	Set the callback on the server.
-
-	Verify 
-
-	Use this callback to implement next server sending non-backend packets via proxy sockets w. the hash of the client address being used to index into the proxy socket array.
-
-	--------------
+	It doesn't matter what proxy socket is used to send this packet, so hash the address and index into the thread sockets.
 
 	Implement some sort of short circuit callback when a direct or network next payload is received from the client.
 
@@ -107,6 +86,18 @@ TODO
 
 	(Will need to work out how to get the correct socket for a given client...)
 
+TODO
+
+	--------------
+
+	Pass the thread number and slot id to network next via the packet (pack into two 16 byte values)
+
+	Maintain a session table for this mapping in the proxy.cpp, driven by packets received on the next socket.
+
+	This session table mapping can be used to quickly map client address -> (thread number, slot number)
+
+	Once we have this mapping, sending the payload to the server from the correct socket is trivial.
+
 	--------------
 
 	Get the server actually initing with the server backend 5.
@@ -114,6 +105,38 @@ TODO
 	--------------
 
 	Verify that network next acceleration works through the proxy.
+
+	--------------
+
+	SDK 5 needs a passthrough only direct mode. 
+
+	Otherwise, we will need the multiple network next proxy server thread functionality for PoC.
+
+	--------------
+
+	Extend SDK5 to prefix all packets with an 8 byte session id value, after the chonkle.
+
+	--------------
+
+	Backport all changes to SDK5 to the main repo and verify that functional tests still pass.
+
+	--------------
+
+	Backport the client ready change to SDK4.
+
+	--------------
+
+	Backport the client ready change to the func client, to avoid heisenbugs losing the first packet.
+
+	--------------
+
+	Extend the proxy.cpp to enable multiple next threads.
+
+	--------------
+
+	Implement load balancing to next threads by simply modulo'ing the packet session id by the num next threads.
+
+	Setup two next threads by default.
 
 	--------------
 
@@ -129,12 +152,6 @@ TODO
 
 	--------------
 
-	SDK 5 needs a passthrough only direct mode. 
-
-	Otherwise, we will need the multiple network next proxy server thread functionality for PoC.
-
-	--------------
-
-	Work is done :)
+	Work on proxy is done :)
 
 	--------------

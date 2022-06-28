@@ -8271,7 +8271,6 @@ struct next_client_t
     next_client_internal_t * internal;
     next_platform_thread_t * thread;
     void (*packet_received_callback)( next_client_t * client, void * context, const struct next_address_t * from, const uint8_t * packet_data, int packet_bytes );
-
     NEXT_DECLARE_SENTINEL(1)
 
     next_client_stats_t client_stats;
@@ -10964,11 +10963,14 @@ int next_read_backend_packet( uint8_t packet_id, uint8_t * packet_data, int begi
 
 // ---------------------------------------------------------------
 
-#define NEXT_SERVER_COMMAND_UPGRADE_SESSION             0
-#define NEXT_SERVER_COMMAND_TAG_SESSION                 1
-#define NEXT_SERVER_COMMAND_SERVER_EVENT                2
-#define NEXT_SERVER_COMMAND_MATCH_DATA                  3
-#define NEXT_SERVER_COMMAND_FLUSH                       4
+#define NEXT_SERVER_COMMAND_UPGRADE_SESSION             			0
+#define NEXT_SERVER_COMMAND_TAG_SESSION                 			1
+#define NEXT_SERVER_COMMAND_SERVER_EVENT                			2
+#define NEXT_SERVER_COMMAND_MATCH_DATA                  			3
+#define NEXT_SERVER_COMMAND_FLUSH                       			4
+#define NEXT_SERVER_COMMAND_SET_PACKET_RECEIVE_CALLBACK             5
+#define NEXT_SERVER_COMMAND_SET_SEND_PACKET_TO_ADDRESS_CALLBACK     6
+#define NEXT_SERVER_COMMAND_SET_PAYLOAD_RECEIVE_CALLBACK            7
 
 struct next_server_command_t
 {
@@ -11006,6 +11008,23 @@ struct next_server_command_match_data_t : public next_server_command_t
 struct next_server_command_flush_t : public next_server_command_t
 {
     // ...
+};
+
+struct next_server_command_set_packet_receive_callback_t : public next_server_command_t
+{
+    void (*callback) ( next_address_t * from, uint8_t * packet_data, int * begin, int * end );
+};
+
+struct next_server_command_set_send_packet_to_address_callback_t : public next_server_command_t
+{
+    int (*callback) ( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
+    void * callback_data;
+};
+
+struct next_server_command_set_payload_receive_callback_t : public next_server_command_t
+{
+    int (*callback) ( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes );
+    void * callback_data;
 };
 
 // ---------------------------------------------------------------
@@ -11178,7 +11197,11 @@ struct next_server_internal_t
 
 	void (*packet_receive_callback) ( next_address_t * from, uint8_t * packet_data, int * begin, int * end );
 
-	void * packet_receive_callback_data;
+	int (*send_packet_to_address_callback)( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
+	void * send_packet_to_address_callback_data;
+
+	int (*payload_receive_callback)( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes );
+	void * payload_receive_callback_data;
 
     NEXT_DECLARE_SENTINEL(12)
 };
@@ -11199,6 +11222,7 @@ void next_server_internal_initialize_sentinels( next_server_internal_t * server 
     NEXT_INITIALIZE_SENTINEL( server, 9 )
     NEXT_INITIALIZE_SENTINEL( server, 10 )
     NEXT_INITIALIZE_SENTINEL( server, 11 )
+    NEXT_INITIALIZE_SENTINEL( server, 12 )
 }
 
 void next_server_internal_verify_sentinels( next_server_internal_t * server )
@@ -11217,6 +11241,7 @@ void next_server_internal_verify_sentinels( next_server_internal_t * server )
     NEXT_VERIFY_SENTINEL( server, 9 )
     NEXT_VERIFY_SENTINEL( server, 10 )
     NEXT_VERIFY_SENTINEL( server, 11 )
+    NEXT_VERIFY_SENTINEL( server, 12 )
     if ( server->session_manager )
         next_session_manager_verify_sentinels( server->session_manager );
     if ( server->pending_session_manager )
@@ -12254,6 +12279,36 @@ void next_server_internal_quit( next_server_internal_t * server )
     server->quit = true;
 }
 
+void next_server_internal_send_packet_to_address( next_server_internal_t * server, const next_address_t * address, const uint8_t * packet_data, int packet_bytes )
+{
+    next_server_internal_verify_sentinels( server );
+
+    next_assert( address );
+    next_assert( address->type != NEXT_ADDRESS_NONE );
+    next_assert( packet_data );
+    next_assert( packet_bytes > 0 );
+
+    if ( server->send_packet_to_address_callback )
+    {
+    	void * callback_data = server->send_packet_to_address_callback_data;
+    	if ( server->send_packet_to_address_callback( callback_data, address, packet_data, packet_bytes ) != 0 )
+    		return;
+    }
+
+    next_platform_socket_send_packet( server->socket, address, packet_data, packet_bytes );
+}
+
+void next_server_internal_send_packet_to_backend( next_server_internal_t * server, const uint8_t * packet_data, int packet_bytes )
+{
+    next_server_internal_verify_sentinels( server );
+
+    next_assert( server->backend_address.type != NEXT_ADDRESS_NONE );
+    next_assert( packet_data );
+    next_assert( packet_bytes > 0 );
+
+    next_platform_socket_send_packet( server->socket, &server->backend_address, packet_data, packet_bytes );
+}
+
 int next_server_internal_send_packet( next_server_internal_t * server, const next_address_t * to_address, uint8_t packet_id, void * packet_object )
 {
     next_assert( server );
@@ -12319,7 +12374,7 @@ int next_server_internal_send_packet( next_server_internal_t * server, const nex
     next_assert( next_basic_packet_filter( buffer, packet_bytes ) );
     next_assert( next_advanced_packet_filter( buffer, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes ) );
 
-    next_platform_socket_send_packet( server->socket, to_address, buffer, packet_bytes );
+    next_server_internal_send_packet_to_address( server, to_address, buffer, packet_bytes );
 
     return NEXT_OK;
 }
@@ -13468,7 +13523,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         next_assert( next_basic_packet_filter( response_data, response_bytes ) );
         next_assert( next_advanced_packet_filter( response_data, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, response_bytes ) );
 
-        next_platform_socket_send_packet( server->socket, from, response_data, response_bytes );
+	    next_server_internal_send_packet_to_address( server, from, response_data, response_bytes );
 
         next_printf( NEXT_LOG_LEVEL_DEBUG, "server sent route response packet to relay for session %" PRIx64, entry->session_id );
 
@@ -13547,7 +13602,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         next_assert( next_basic_packet_filter( response_data, response_bytes ) );
         next_assert( next_advanced_packet_filter( response_data, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, response_bytes ) );
 
-        next_platform_socket_send_packet( server->socket, from, response_data, response_bytes );
+	    next_server_internal_send_packet_to_address( server, from, response_data, response_bytes );
 
         next_printf( NEXT_LOG_LEVEL_DEBUG, "server sent continue response packet to relay for session %" PRIx64, entry->session_id );
 
@@ -13638,7 +13693,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         next_assert( next_basic_packet_filter( pong_packet_data, pong_packet_bytes ) );
         next_assert( next_advanced_packet_filter( pong_packet_data, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, pong_packet_bytes ) );
 
-        next_platform_socket_send_packet( server->socket, from, pong_packet_data, pong_packet_bytes );
+	    next_server_internal_send_packet_to_address( server, from, pong_packet_data, pong_packet_bytes );
 
         return;
     }
@@ -14160,6 +14215,29 @@ void next_server_internal_pump_commands( next_server_internal_t * server )
             }
             break;
 
+            case NEXT_SERVER_COMMAND_SET_PACKET_RECEIVE_CALLBACK:
+            {
+                next_server_command_set_packet_receive_callback_t * cmd = (next_server_command_set_packet_receive_callback_t*) command;
+            	server->packet_receive_callback = cmd->callback;
+            }
+            break;
+
+            case NEXT_SERVER_COMMAND_SET_SEND_PACKET_TO_ADDRESS_CALLBACK:
+            {
+                next_server_command_set_send_packet_to_address_callback_t * cmd = (next_server_command_set_send_packet_to_address_callback_t*) command;
+            	server->send_packet_to_address_callback = cmd->callback;
+            	server->send_packet_to_address_callback_data = cmd->callback_data;
+            }
+            break;
+
+            case NEXT_SERVER_COMMAND_SET_PAYLOAD_RECEIVE_CALLBACK:
+            {
+                next_server_command_set_payload_receive_callback_t * cmd = (next_server_command_set_payload_receive_callback_t*) command;
+            	server->payload_receive_callback = cmd->callback;
+            	server->payload_receive_callback_data = cmd->callback_data;
+            }
+            break;
+
             default: break;
         }
 
@@ -14559,7 +14637,7 @@ void next_server_internal_update_init( next_server_internal_t * server )
     next_assert( next_basic_packet_filter( packet_data, packet_bytes ) );
     next_assert( next_advanced_packet_filter( packet_data, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes ) );
 
-    next_platform_socket_send_packet( server->socket, &server->backend_address, packet_data, packet_bytes );
+    next_server_internal_send_packet_to_backend( server, packet_data, packet_bytes );
 
     next_printf( NEXT_LOG_LEVEL_DEBUG, "server sent init request to backend" );
 }
@@ -14660,7 +14738,7 @@ void next_server_internal_backend_update( next_server_internal_t * server )
         next_assert( next_basic_packet_filter( packet_data, packet_bytes ) );
         next_assert( next_advanced_packet_filter( packet_data, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes ) );
 
-        next_platform_socket_send_packet( server->socket, &server->backend_address, packet_data, packet_bytes );
+        next_server_internal_send_packet_to_backend( server, packet_data, packet_bytes );
 
         server->server_update_last_time = current_time;
 
@@ -14711,7 +14789,7 @@ void next_server_internal_backend_update( next_server_internal_t * server )
         next_assert( next_basic_packet_filter( packet_data, packet_bytes ) );
         next_assert( next_advanced_packet_filter( packet_data, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes ) );
 
-        next_platform_socket_send_packet( server->socket, &server->backend_address, packet_data, packet_bytes );
+        next_server_internal_send_packet_to_backend( server, packet_data, packet_bytes );
 
         next_printf( NEXT_LOG_LEVEL_DEBUG, "server resent server update packet to backend", packet.num_sessions );
 
@@ -14824,7 +14902,7 @@ void next_server_internal_backend_update( next_server_internal_t * server )
             next_assert( next_basic_packet_filter( packet_data, packet_bytes ) );
             next_assert( next_advanced_packet_filter( packet_data, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes ) );
 
-            next_platform_socket_send_packet( server->socket, &server->backend_address, packet_data, packet_bytes );
+            next_server_internal_send_packet_to_backend( server, packet_data, packet_bytes );
 
             next_printf( NEXT_LOG_LEVEL_DEBUG, "server sent session update packet to backend for session %" PRIx64, session->session_id );
 
@@ -14878,7 +14956,7 @@ void next_server_internal_backend_update( next_server_internal_t * server )
             next_assert( next_basic_packet_filter( packet_data, packet_bytes ) );
             next_assert( next_advanced_packet_filter( packet_data, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes ) );
 
-            next_platform_socket_send_packet( server->socket, &server->backend_address, packet_data, packet_bytes );
+            next_server_internal_send_packet_to_backend( server, packet_data, packet_bytes );
 
             session->next_session_resend_time += NEXT_SESSION_UPDATE_RESEND_TIME;
         }
@@ -14957,7 +15035,7 @@ void next_server_internal_backend_update( next_server_internal_t * server )
             next_assert( next_basic_packet_filter( packet_data, packet_bytes ) );
             next_assert( next_advanced_packet_filter( packet_data, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes ) );
 
-            next_platform_socket_send_packet( server->socket, &server->backend_address, packet_data, packet_bytes );
+            next_server_internal_send_packet_to_backend( server, packet_data, packet_bytes );
             
             next_printf( NEXT_LOG_LEVEL_DEBUG, "server sent match data packet to backend for session %" PRIx64, session->session_id );
 
@@ -14999,7 +15077,7 @@ void next_server_internal_backend_update( next_server_internal_t * server )
             next_assert( next_basic_packet_filter( packet_data, packet_bytes ) );
             next_assert( next_advanced_packet_filter( packet_data, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes ) );
 
-            next_platform_socket_send_packet( server->socket, &server->backend_address, packet_data, packet_bytes );
+            next_server_internal_send_packet_to_backend( server, packet_data, packet_bytes );
 
             session->next_match_data_resend_time += ( session->match_data_flush && !session->match_data_flush_finished ) ? NEXT_MATCH_DATA_FLUSH_RESEND_TIME : NEXT_MATCH_DATA_RESEND_TIME;
         }
@@ -15056,7 +15134,6 @@ struct next_server_t
     void * context;
     next_server_internal_t * internal;
     next_platform_thread_t * thread;
-    void (*packet_received_callback)( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes );
     next_proxy_session_manager_t * pending_session_manager;
     next_proxy_session_manager_t * session_manager;
     next_address_t address;
@@ -15071,6 +15148,12 @@ struct next_server_t
     uint8_t current_magic[8];
 
     NEXT_DECLARE_SENTINEL(2)
+
+    void (*packet_received_callback)( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes );
+	int (*send_packet_to_address_callback)( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
+	void * send_packet_to_address_callback_data;
+
+    NEXT_DECLARE_SENTINEL(3)
 };
 
 void next_server_initialize_sentinels( next_server_t * server )
@@ -15080,6 +15163,7 @@ void next_server_initialize_sentinels( next_server_t * server )
     NEXT_INITIALIZE_SENTINEL( server, 0 )
     NEXT_INITIALIZE_SENTINEL( server, 1 )
     NEXT_INITIALIZE_SENTINEL( server, 2 )
+    NEXT_INITIALIZE_SENTINEL( server, 3 )
 }
 
 void next_server_verify_sentinels( next_server_t * server )
@@ -15089,6 +15173,7 @@ void next_server_verify_sentinels( next_server_t * server )
     NEXT_VERIFY_SENTINEL( server, 0 )
     NEXT_VERIFY_SENTINEL( server, 1 )
     NEXT_VERIFY_SENTINEL( server, 2 )
+    NEXT_VERIFY_SENTINEL( server, 3 )
     if ( server->session_manager )
         next_proxy_session_manager_verify_sentinels( server->session_manager );
     if ( server->pending_session_manager )
@@ -15445,6 +15530,25 @@ NEXT_BOOL next_server_session_upgraded( next_server_t * server, const next_addre
     return NEXT_FALSE;
 }
 
+void next_server_send_packet_to_address( next_server_t * server, const next_address_t * address, const uint8_t * packet_data, int packet_bytes )
+{
+    next_server_verify_sentinels( server );
+
+    next_assert( address );
+    next_assert( address->type != NEXT_ADDRESS_NONE );
+    next_assert( packet_data );
+    next_assert( packet_bytes > 0 );
+
+    if ( server->send_packet_to_address_callback )
+    {
+    	void * callback_data = server->send_packet_to_address_callback_data;
+    	if ( server->send_packet_to_address_callback( callback_data, address, packet_data, packet_bytes ) != 0 )
+    		return;
+    }
+
+    next_platform_socket_send_packet( server->internal->socket, address, packet_data, packet_bytes );
+}
+
 void next_server_send_packet( next_server_t * server, const next_address_t * to_address, const uint8_t * packet_data, int packet_bytes )
 {
     next_server_verify_sentinels( server );
@@ -15570,7 +15674,7 @@ void next_server_send_packet( next_server_t * server, const next_address_t * to_
             next_assert( next_basic_packet_filter( next_packet_data, next_packet_bytes ) );
             next_assert( next_advanced_packet_filter( next_packet_data, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, next_packet_bytes ) );
 
-            next_platform_socket_send_packet( server->internal->socket, &session_address, next_packet_data, next_packet_bytes );
+            next_server_send_packet_to_address( server, &session_address, next_packet_data, next_packet_bytes );
         }
 
         if ( send_upgraded_direct )
@@ -15598,7 +15702,7 @@ void next_server_send_packet( next_server_t * server, const next_address_t * to_
             next_assert( next_basic_packet_filter( direct_packet_data, direct_packet_bytes ) );
             next_assert( next_advanced_packet_filter( direct_packet_data, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, direct_packet_bytes ) );
 
-            next_platform_socket_send_packet( server->internal->socket, to_address, direct_packet_data, size_t(direct_packet_bytes) );
+            next_server_send_packet_to_address( server, &session_address, direct_packet_data, direct_packet_bytes );
         }
     }
     else
@@ -15633,7 +15737,7 @@ void next_server_send_packet_direct( next_server_t * server, const next_address_
     uint8_t buffer[NEXT_MAX_PACKET_BYTES];
     buffer[0] = NEXT_PASSTHROUGH_PACKET;
     memcpy( buffer + 1, packet_data, packet_bytes );
-    next_platform_socket_send_packet( server->internal->socket, to_address, buffer, packet_bytes + 1 );
+	next_server_send_packet_to_address( server, to_address, buffer, packet_bytes + 1 );
 }
 
 NEXT_BOOL next_server_stats( next_server_t * server, const next_address_t * address, next_server_stats_t * stats )
@@ -15825,6 +15929,71 @@ void next_server_flush( struct next_server_t * server )
     else
     {
 	    next_printf( NEXT_LOG_LEVEL_INFO, "server flush finished" );	
+    }
+}
+
+void next_server_set_packet_receive_callback( struct next_server_t * server, void (*callback) ( next_address_t * from, uint8_t * packet_data, int * begin, int * end ) )
+{
+	next_assert( server );
+
+    next_server_command_set_packet_receive_callback_t * command = (next_server_command_set_packet_receive_callback_t*) next_malloc( server->context, sizeof( next_server_command_set_packet_receive_callback_t ) );
+    if ( !command )
+    {
+        next_printf( NEXT_LOG_LEVEL_ERROR, "server set packet receive callback failed. could not create command" );
+        return;
+    }
+
+    command->type = NEXT_SERVER_COMMAND_SET_PACKET_RECEIVE_CALLBACK;
+    command->callback = callback;
+
+    {    
+        next_platform_mutex_guard( &server->internal->command_mutex );
+        next_queue_push( server->internal->command_queue, command );
+    }
+}
+
+void next_server_set_send_packet_to_address_callback( struct next_server_t * server, int (*callback) ( void * data, const next_address_t * from, const uint8_t * packet_data, int packet_bytes ), void * callback_data )
+{
+	next_assert( server );
+
+	server->send_packet_to_address_callback = callback;
+	server->send_packet_to_address_callback_data = callback_data;
+
+    next_server_command_set_send_packet_to_address_callback_t * command = (next_server_command_set_send_packet_to_address_callback_t*) next_malloc( server->context, sizeof( next_server_command_set_send_packet_to_address_callback_t ) );
+    if ( !command )
+    {
+        next_printf( NEXT_LOG_LEVEL_ERROR, "server set send packet to address callback failed. could not create command" );
+        return;
+    }
+
+    command->type = NEXT_SERVER_COMMAND_SET_SEND_PACKET_TO_ADDRESS_CALLBACK;
+    command->callback = callback;
+    command->callback_data = callback_data;
+
+    {    
+        next_platform_mutex_guard( &server->internal->command_mutex );
+        next_queue_push( server->internal->command_queue, command );
+    }
+}
+
+void next_server_set_payload_receive_callback( struct next_server_t * server, int (*callback) ( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes ), void * callback_data )
+{
+	next_assert( server );
+
+    next_server_command_set_payload_receive_callback_t * command = (next_server_command_set_payload_receive_callback_t*) next_malloc( server->context, sizeof( next_server_command_set_payload_receive_callback_t ) );
+    if ( !command )
+    {
+        next_printf( NEXT_LOG_LEVEL_ERROR, "server set payload receive callback failed. could not create command" );
+        return;
+    }
+
+    command->type = NEXT_SERVER_COMMAND_SET_PAYLOAD_RECEIVE_CALLBACK;
+    command->callback = callback;
+    command->callback_data = callback_data;
+
+    {    
+        next_platform_mutex_guard( &server->internal->command_mutex );
+        next_queue_push( server->internal->command_queue, command );
     }
 }
 
