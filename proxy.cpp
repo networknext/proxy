@@ -808,6 +808,8 @@ void session_table_swap( session_table_t * table )
 
 void session_table_insert( session_table_t * table, const proxy_address_t * key, int value )
 {
+	// IMPORTANT: key must not already exist in table
+
 	assert( table );
 
     uint64_t hash = hash_address( key );
@@ -868,6 +870,14 @@ int session_table_get( session_table_t * table, const proxy_address_t * key )
     }
 
     return -1;
+}
+
+void session_table_update( session_table_t * table, const proxy_address_t * key, int value )
+{
+	int existing_value = session_table_get( table, key );
+	if ( existing_value >= 0 )
+		return;
+	session_table_insert( table, key, value );
 }
 
 void test_session_table()
@@ -1045,7 +1055,10 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		int packet_bytes = proxy_platform_socket_receive_packet( thread_data->socket, &from, buffer + 1, config.max_packet_size );
 
 		if ( packet_bytes < 0 )
+		{
+			printf( "packet bytes < 0\n" );
 			break;
+		}
 
 		if ( packet_bytes == 0 )
 			continue;
@@ -1058,6 +1071,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		if ( allocated )
 		{
 			// forward packet to client
+
 			debug_printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
             buffer[0] = 0;
 			uint64_t hash = hash_address( &client_address );
@@ -1172,7 +1186,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 		if ( current_time - last_swap_time > config.slot_timeout_seconds / 2 )
 		{
-			debug_printf( "thread %d swap\n", thread_data->thread_number );
+			// todo
+			printf( "proxy thread %d swap\n", thread_data->thread_number );
 			session_table_swap( thread_data->session_table );
 			last_swap_time = current_time;
 		}
@@ -1255,8 +1270,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, packet_data + 1, packet_bytes - 1 );
 	  		}
 		}
-		// todo
-		//else
+		// else
 		{
 			// other packet types
 
@@ -1283,6 +1297,10 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 					break;
             }
             
+			int slot = session_table_get( thread_data->session_table, &from );
+			if ( slot != -1 )
+				continue;
+
             packet_data = buffer;
             packet_bytes += prefix;
 
@@ -1293,6 +1311,12 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
             packet_data[4] = from.data.ipv4[3];
             packet_data[5] = uint8_t( from.port >> 8 );
             packet_data[6] = uint8_t( from.port );
+            packet_data[7] = uint8_t( thread_data->thread_number >> 8 );
+            packet_data[8] = uint8_t( thread_data->thread_number );
+            packet_data[9] = uint8_t( slot >> 8 );
+            packet_data[10] = uint8_t( slot );
+
+            // forward packet to next server
 
             printf( "forwarding packet to next server: %d bytes\n", packet_bytes );
 
@@ -1382,6 +1406,9 @@ struct next_thread_data_t
 	next_server_t * next_server;
 	proxy_platform_socket_t ** thread_sockets;
 	proxy_platform_socket_t ** slot_sockets;
+	session_table_t * session_table;
+	double last_session_table_swap_time;
+	proxy_thread_data_t ** proxy_thread_data;
 };
 
 void next_packet_received( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
@@ -1395,15 +1422,17 @@ void next_packet_received( next_server_t * server, void * context, const next_ad
     // not used
 }
 
-void next_packet_receive_callback( next_address_t * from, uint8_t * packet_data, int * begin, int * end )
+void next_packet_receive_callback( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end )
 {
 	printf( "*** packet receive callback ***\n" );
+
+	next_thread_data_t * thread_data = ( next_thread_data_t*) data;
 
 	// ignore any packet that's too short to be valid
 
 	const int packet_bytes = *end - *begin;
 
-	if ( packet_bytes <= 7 )
+	if ( packet_bytes <= 11 )
 	{
 		*begin = 0;
 		*end = 0;
@@ -1439,9 +1468,32 @@ void next_packet_receive_callback( next_address_t * from, uint8_t * packet_data,
 	from->data.ipv4[3] = packet_data[4];
 	from->port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
 
+	// update the client address -> (thread id, slot id) mapping
+
+	const int thread_id = ( int(packet_data[7]) << 8 ) | ( int(packet_data[8]) );
+	const int slot_id = ( int(packet_data[9]) << 8 ) | ( int(packet_data[10]) );
+
+	const int socket_index = thread_id * config.num_slots_per_thread + slot_id;
+
+	session_table_update( thread_data->session_table, (proxy_address_t*) from, socket_index );
+
+	// swap the session table double buffer every n seconds
+
+	const double current_time = next_time();
+
+	const double time_since_last_swap = current_time - thread_data->last_session_table_swap_time;
+
+	if ( time_since_last_swap >= config.slot_timeout_seconds )
+	{
+		// todo
+		printf( "next thread swap\n" );
+		session_table_swap( thread_data->session_table );
+		thread_data->last_session_table_swap_time = current_time;
+	}
+
 	// adjust begin index forward
 
-	*begin += 7;
+	*begin += 11;
 }
 
 int next_send_packet_to_address_callback( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes )
@@ -1469,13 +1521,16 @@ int next_payload_receive_callback( void * data, const next_address_t * client_ad
 
 	next_assert( thread_data );
 
-	// todo: we need a mapping from the client address to the thread number and slot number of its socket
+	int socket_index = session_table_get( thread_data->session_table, (proxy_address_t*) client_address );
+	if ( socket_index < 0 )
+		return 1;
+
+	proxy_platform_socket_t * socket = thread_data->slot_sockets[socket_index];
 
 	// todo
-	(void) data;
-	(void) client_address;
-	(void) payload_data;
-	(void) payload_bytes;
+	printf( "next thread forwarded packet to server\n" );
+
+	proxy_platform_socket_send_packet( socket, &config.server_address, payload_data, payload_bytes );
 
 	return 1;
 }
@@ -1639,7 +1694,7 @@ int main( int argc, char * argv[] )
 	        exit(1);
 	    }
 
-	    next_server_set_packet_receive_callback( next_server, next_packet_receive_callback );
+	    next_server_set_packet_receive_callback( next_server, next_packet_receive_callback, thread_data );
 
 	    next_server_set_send_packet_to_address_callback( next_server, next_send_packet_to_address_callback, thread_data );
 
@@ -1686,6 +1741,8 @@ int main( int argc, char * argv[] )
 		next_thread_data->next_server = next_server;
 		next_thread_data->thread_sockets = thread_sockets;
 		next_thread_data->slot_sockets = slot_sockets;
+		next_thread_data->session_table = session_table_create();
+		next_thread_data->last_session_table_swap_time = next_time();
 
 	    next_thread = proxy_platform_thread_create( next_thread_function, next_thread_data );
 

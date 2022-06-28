@@ -1,130 +1,28 @@
 DONE
 
-	Renamed hash_table to session_table and implemented double buffer swap for timeouts without O(n).
+	Pass the thread number and slot id to network next via the packet (pack into two 16 byte values)
 
-	Server was creating the slot sockets, which messed things up. only proxy creates them now.
+	Implement code in the next receive packet callback to unpack this data
+	
+	Update session table so it has a "update" method, eg. insert or keep in set if already existing.
 
-	Implement test for session table that exercises swap.
+	Extend receive packet callback so it has a void * data passed to it.
 
-	Implement swap every 30 seconds for the session table in the proxy.
+	Setup the code to swap the session table in the next thread every 60 seconds.
 
-	Session table get needs to move the session to current on get from previous.
-
-	Verify a client remains connected across two swaps now.
-
-	Force the next client to use a specific port, and then verify that it can reconnect and get "new client", 60+ seconds after it first connects to the proxy.
-
-	Verified, but had to work around blocking socket recv timeout not working on macos.
-
-	Don't set SO_REUSEPORT or SO_REUSEADDR on sockets unless needed.
-
-	Add packet filter code to proxy.
-
-	Implement code to check non-zero byte packets against the stateless packet filter.
-
-	If the packet fails the stateless packet filter, drop it.
-
-	Check for valid network next packet types and print them out.
-
-	No need to stop the server creating a socket. The next server needs the socket for comms with the backend.
-
-	Proxy sockets no longer need to take backend packets.
-
-	Adding an extra next socket per-next thread is a bad idea. Use the network next socket native. It's already setup to work with multiple threads (internal receive thread, main thread for sends etc.)
-
-	Network Next server needs a callback to optionally process a packet, adjust the "from", and change start and size.
-
-	This callback will be called when packets are received in the receive thread, and will make it possible for me to implement the proxy address prefix in a generic way without hardcoding "proxy mode" into the next server.
-
-	Sketched out the callback roughly.
-
-	Update next_server_internal_process_network_next_packet to work with begin/end for backend packets.
-
-	Update read backend packet function to use begin/end.
-
-	Now update next_read_packet to use begin/end.
-
-	Update all unit tests to the new way of reading packets.
-
-	Update all code in the client and server to use the new way of reading packets.
-
-	Forward network next packets to the next thread, prefixed by the packet type, client address ipv4 and port number (7 bytes total).
-
-	Verify that the packet gets forward to next.
-
-	Verify that the client address is passed to next.
-
-	All confirmed. At this point the flow from thread sockets -> network next socket is working.
-
-	Setup the packet receive callback end-to-end for the server w. command to internal thread.
-
-	Verify the callback is set and working.
-
-	Extend next server to have send_packet_to_address methods.
-
-	Make sure all sending of packets is done via this function.
-
-	Implement callback for sending packets to an address for the next_server_t
-
-	Make sure to include a void* data for the callback.
-
-	Add a command from server to internal server when the callback is set.
-
-	Handle the command and setup the callback when received.
-
-	In theory, server and server internal are all setup now to have the callback for send packet to address.
-
-	Dummy out the callback to send packets to an address on behalf of the server in proxy.cpp
-
-	It doesn't matter what proxy socket is used to send this packet, so hash the address and index into the thread sockets.
-
-	Implement some sort of short circuit callback when a direct or network next payload is received from the client.
-
-	This is important so the packet doesn't get an additional 16.67ms of latency added with frame quantization in the next thread.
-
-	Implement this callback to forward packets immediately to the server address, from the appropriate client slot address.
-
-	(Will need to work out how to get the correct socket for a given client...)
+	Setup the code to forward packet to server from next payload receive callbacke.
 
 TODO
 
 	--------------
 
-	Pass the thread number and slot id to network next via the packet (pack into two 16 byte values)
-
-	Maintain a session table for this mapping in the proxy.cpp, driven by packets received on the next socket.
-
-	This session table mapping can be used to quickly map client address -> (thread number, slot number)
-
-	Once we have this mapping, sending the payload to the server from the correct socket is trivial.
-
-	--------------
-
-	Get the server actually initing with the server backend 5.
-
-	--------------
-
-	Verify that network next acceleration works through the proxy.
-
-	--------------
-
-	SDK 5 needs a passthrough only direct mode. 
-
-	Otherwise, we will need the multiple network next proxy server thread functionality for PoC.
-
-	--------------
-
 	Extend SDK5 to prefix all packets with an 8 byte session id value, after the chonkle.
 
-	--------------
+	Extend SDK5 to have a force direct passthrough mode.
 
 	Backport all changes to SDK5 to the main repo and verify that functional tests still pass.
 
-	--------------
-
 	Backport the client ready change to SDK4.
-
-	--------------
 
 	Backport the client ready change to the func client, to avoid heisenbugs losing the first packet.
 
@@ -132,25 +30,23 @@ TODO
 
 	Extend the proxy.cpp to enable multiple next threads.
 
-	--------------
-
 	Implement load balancing to next threads by simply modulo'ing the packet session id by the num next threads.
 
 	Setup two next threads by default.
 
 	--------------
 
-	Load test again in google, to make sure nothing has broken.
+	Get the server actually initing with the server backend 5.
 
-	--------------
+	Verify that network next acceleration works through the proxy.
+
+	Load test again in google, to make sure nothing has broken.
 
 	Setup a relay in GCore ashburn datacenter (10G).
 
 	Setup a client, server and proxy in GCore (10G).
 
 	Load test in GCore.
-
-	--------------
 
 	Work on proxy is done :)
 

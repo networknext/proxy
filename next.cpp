@@ -11012,7 +11012,8 @@ struct next_server_command_flush_t : public next_server_command_t
 
 struct next_server_command_set_packet_receive_callback_t : public next_server_command_t
 {
-    void (*callback) ( next_address_t * from, uint8_t * packet_data, int * begin, int * end );
+    void (*callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end );
+    void * callback_data;
 };
 
 struct next_server_command_set_send_packet_to_address_callback_t : public next_server_command_t
@@ -11195,7 +11196,8 @@ struct next_server_internal_t
 
     NEXT_DECLARE_SENTINEL(11)
 
-	void (*packet_receive_callback) ( next_address_t * from, uint8_t * packet_data, int * begin, int * end );
+	void (*packet_receive_callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end );
+	void * packet_receive_callback_data;
 
 	int (*send_packet_to_address_callback)( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
 	void * send_packet_to_address_callback_data;
@@ -13902,7 +13904,9 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
 
     if ( server->packet_receive_callback )
     {
-	    server->packet_receive_callback( &from, packet_data, &begin, &end );
+    	void * callback_data = server->packet_receive_callback_data;
+
+	    server->packet_receive_callback( callback_data, &from, packet_data, &begin, &end );
 
 	    next_assert( begin >= 0 );
 	    next_assert( end <= NEXT_MAX_PACKET_BYTES );
@@ -14219,6 +14223,7 @@ void next_server_internal_pump_commands( next_server_internal_t * server )
             {
                 next_server_command_set_packet_receive_callback_t * cmd = (next_server_command_set_packet_receive_callback_t*) command;
             	server->packet_receive_callback = cmd->callback;
+            	server->packet_receive_callback_data = cmd->callback_data;
             }
             break;
 
@@ -15932,7 +15937,7 @@ void next_server_flush( struct next_server_t * server )
     }
 }
 
-void next_server_set_packet_receive_callback( struct next_server_t * server, void (*callback) ( next_address_t * from, uint8_t * packet_data, int * begin, int * end ) )
+void next_server_set_packet_receive_callback( struct next_server_t * server, void (*callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end ), void * callback_data )
 {
 	next_assert( server );
 
@@ -15945,6 +15950,7 @@ void next_server_set_packet_receive_callback( struct next_server_t * server, voi
 
     command->type = NEXT_SERVER_COMMAND_SET_PACKET_RECEIVE_CALLBACK;
     command->callback = callback;
+    command->callback_data = callback_data;
 
     {    
         next_platform_mutex_guard( &server->internal->command_mutex );
