@@ -16,23 +16,7 @@ TODO
 
 	--------------
 
-	Extend SDK5 to prefix all packets with an 8 byte session id value, after the chonkle.
-
-	Extend SDK5 to have a force direct passthrough mode.
-
 	Backport all changes to SDK5 to the main repo and verify that functional tests still pass.
-
-	Backport the client ready change to SDK4.
-
-	Backport the client ready change to the func client, to avoid heisenbugs losing the first packet.
-
-	--------------
-
-	Extend the proxy.cpp to enable multiple next threads.
-
-	Implement load balancing to next threads by simply modulo'ing the packet session id by the num next threads.
-
-	Setup two next threads by default.
 
 	--------------
 
@@ -49,5 +33,11 @@ TODO
 	Load test in GCore.
 
 	Work on proxy is done :)
+
+	--------------
+
+	Backport the client ready change to SDK4.
+
+	Backport the client ready change to the func client, to avoid heisenbugs losing the first packet.
 
 	--------------
