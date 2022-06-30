@@ -1074,7 +1074,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		{
 			// forward packet to client
 
-			debug_printf( "proxy thread %d forwarded packet to client for slot %d (%s)\n", thread_data->thread_number, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
+			debug_printf( "proxy thread %d forwarded %d byte packet to client for slot %d (%s)\n", thread_data->thread_number, packet_bytes + 1, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
+
             buffer[0] = 0;
 			uint64_t hash = hash_address( &client_address );
 			int index = hash % config.num_threads;
@@ -1280,7 +1281,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 				// todo: when the upgrade below is turned on -- packets are lost. what is going on?
 
-				/*
 				// send dummy passthrough packet to the next thread so it sees the new client and upgrades it
 
 	            packet_data[0] = NEXT_PASSTHROUGH_PACKET;
@@ -1296,7 +1296,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	            packet_data[10] = uint8_t( slot );
 
 				next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_address, packet_data, prefix + 1 );
-				*/
 	  		}
 		}
 		else
@@ -1329,7 +1328,11 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
             
 			int slot = session_table_get( thread_data->session_table, &from );
 			if ( slot == -1 )
+			{
+				// todo
+				printf( "no slot found\n" );
 				continue;
+			}
 
             packet_data = buffer;
             packet_bytes += prefix;
@@ -1347,8 +1350,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
             packet_data[10] = uint8_t( slot );
 
             // forward packet to next server
-
-            // printf( "forward packet %d to next server\n", packet_type );
 
 			next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_address, packet_data, packet_bytes );
 		}
@@ -1415,7 +1416,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 		if ( packet_bytes == 0 )
 			continue;
 
-		debug_printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
+		// todo
+		// printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
 
 		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
 	}
@@ -1450,6 +1452,7 @@ void next_packet_received( next_server_t * server, void * context, const next_ad
     (void) packet_bytes;
 
     // not used
+    assert( false );
 }
 
 void next_packet_receive_callback( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end )
@@ -1521,7 +1524,7 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 		}
 	}
 
-	// if it is a passthrough packet, stop here. these are just sent so we can upgrade sessions
+	// if it is a passthrough packet, stop here. these are just sent to the next server to upgrade sessions
 
 	if ( packet_type == NEXT_PASSTHROUGH_PACKET )
 	{
@@ -1574,6 +1577,11 @@ int next_payload_receive_callback( void * data, const next_address_t * from, con
 		return 1;
 
 	proxy_platform_socket_t * socket = thread_data->slot_sockets[socket_index];
+
+	/*
+	char buffer[1024];
+	printf( "next thread forwarded %d byte packet to server for client %s\n", payload_bytes, next_address_to_string( from, buffer ) );
+	*/
 
 	proxy_platform_socket_send_packet( socket, &config.server_address, payload_data, payload_bytes );
 

@@ -2,7 +2,54 @@ DONE
 
 	Fix the code that gets the client upgraded so it only forwards a single packet.
 
+	Fix the bug where upgraded direct packets are not getting through on the client.
+
+	It's caused by the packet contents being corrupted:
+
+		client port is 2000
+		client received 100 byte packet 0
+		client received 100 byte packet 1
+		client received 100 byte packet 2
+		client received 100 byte packet 3
+		client received 100 byte packet 4
+		client received 100 byte packet 5
+		client received 100 byte packet 6
+		client received 100 byte packet 7
+		client received 100 byte packet 8
+		client received 100 byte packet 9
+		client received 100 byte packet 10
+		client received 100 byte packet 11
+		client received 100 byte packet 12
+		client received 100 byte packet 13
+		client received 100 byte packet 14
+		client received 100 byte packet 15
+		client received 100 byte packet 16
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+		client received 109 byte packet 58554496032210689
+
+	Next thread is forwarding a 109 byte packet to the server.
+
+	But it should only forward a naked 100 byte packet.
+
+	Why is the payload packet containing crap at the start? Is it prefix data?	
+
+	Fixed. The payload callback wasn't skipping past the direct packet header.
+
+	Also applied same fix for payload callback on client to server next packets.
+
 TODO
+
+	--------------
 
 	Work out how to get the server -> proxy packets funneled to network next, when a next route is available.
 

@@ -13001,20 +13001,25 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
         next_jitter_tracker_packet_received( &entry->jitter_tracker, clean_sequence, next_time() );
 
+    	begin += 9;
+
+    	const int payload_bytes = end - begin;
+    	const uint8_t * payload_data = packet_data + begin;
+
     	if ( server->payload_receive_callback )
     	{
     		void * callback_data = server->payload_receive_callback_data;
-    		if ( server->payload_receive_callback( callback_data, from, packet_data, packet_bytes ) )
+    		if ( server->payload_receive_callback( callback_data, from, payload_data, payload_bytes ) )
 	    		return;
     	}
 
         next_server_notify_packet_received_t * notify = (next_server_notify_packet_received_t*) next_malloc( server->context, sizeof( next_server_notify_packet_received_t ) );
         notify->type = NEXT_SERVER_NOTIFY_PACKET_RECEIVED;
         notify->from = *from;
-        notify->packet_bytes = packet_bytes - 9;
+        notify->packet_bytes = payload_bytes;
         next_assert( notify->packet_bytes > 0 );
         next_assert( notify->packet_bytes <= NEXT_MTU );
-        memcpy( notify->packet_data, packet_data + begin + 9, size_t(notify->packet_bytes) );
+        memcpy( notify->packet_data, payload_data, size_t(notify->packet_bytes) );
         {
             next_platform_mutex_guard( &server->notify_mutex );
             next_queue_push( server->notify_queue, notify );
@@ -13658,20 +13663,25 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
+        begin += NEXT_HEADER_BYTES;
+
+        const int payload_bytes = end - begin;
+        const uint8_t * payload_data = packet_data + begin;
+
     	if ( server->payload_receive_callback )
     	{
     		void * callback_data = server->payload_receive_callback_data;
-    		if ( server->payload_receive_callback( callback_data, from, packet_data, packet_bytes ) )
+    		if ( server->payload_receive_callback( callback_data, from, payload_data, payload_bytes ) )
 	    		return;
     	}
 
         next_server_notify_packet_received_t * notify = (next_server_notify_packet_received_t*) next_malloc( server->context, sizeof( next_server_notify_packet_received_t ) );
         notify->type = NEXT_SERVER_NOTIFY_PACKET_RECEIVED;
         notify->from = entry->address;
-        notify->packet_bytes = packet_bytes - NEXT_HEADER_BYTES;
+        notify->packet_bytes = payload_bytes;
         next_assert( notify->packet_bytes > 0 );
         next_assert( notify->packet_bytes <= NEXT_MTU );
-        memcpy( notify->packet_data, packet_data + begin + NEXT_HEADER_BYTES, size_t(notify->packet_bytes) );
+        memcpy( notify->packet_data, payload_data, size_t(notify->packet_bytes) );
         {
             next_platform_mutex_guard( &server->notify_mutex );
             next_queue_push( server->notify_queue, notify );

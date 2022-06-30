@@ -27,7 +27,7 @@
 #include <string.h>
 #include <inttypes.h>
 
-const char * bind_address = "0.0.0.0:2000";
+const char * bind_address = "0.0.0.0:0";
 const char * server_address = "127.0.0.1:40000";
 const char * customer_public_key = "leN7D7+9vr24uT4f1Ba8PEEvIQA/UkGZLlT+sdeLRHKsVqaZq723Zw==";
 
@@ -51,7 +51,8 @@ void client_packet_received( next_client_t * client, void * context, const next_
 
 	if ( packet_bytes < 8 )
 	{
-		// printf( "packet too small: %d\n", packet_bytes );
+		// todo
+		printf( "packet too small: %d\n", packet_bytes );
 		return;
 	}
 
@@ -59,7 +60,7 @@ void client_packet_received( next_client_t * client, void * context, const next_
 
 	uint64_t sequence = next_read_uint64( &p );
 
-    // printf( "client received packet %" PRId64 "\n", sequence );
+    // printf( "client received %d byte packet %" PRId64 "\n", packet_bytes, sequence );
 
 	received_packets[sequence%1024] = sequence;
 
