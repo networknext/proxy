@@ -13001,6 +13001,9 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
         next_jitter_tracker_packet_received( &entry->jitter_tracker, clean_sequence, next_time() );
 
+        // todo: payload receive callback
+        printf( "received NEXT_DIRECT_PACKET\n" );
+
         next_server_notify_packet_received_t * notify = (next_server_notify_packet_received_t*) next_malloc( server->context, sizeof( next_server_notify_packet_received_t ) );
         notify->type = NEXT_SERVER_NOTIFY_PACKET_RECEIVED;
         notify->from = *from;
@@ -13651,6 +13654,9 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
+        // todo
+        printf( "NEXT_CLIENT_TO_SERVER_PACKET\n" );
+
         next_server_notify_packet_received_t * notify = (next_server_notify_packet_received_t*) next_malloc( server->context, sizeof( next_server_notify_packet_received_t ) );
         notify->type = NEXT_SERVER_NOTIFY_PACKET_RECEIVED;
         notify->from = entry->address;
@@ -13876,6 +13882,9 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
 void next_server_internal_process_passthrough_packet( next_server_internal_t * server, const next_address_t * from, uint8_t * packet_data, int packet_bytes )
 {
+	// todo
+	printf( "NEXT_PASSTHROUGH_PACKET\n" );
+
     next_assert( server );
     next_assert( from );
     next_assert( packet_data );
@@ -13921,6 +13930,9 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
     if ( packet_bytes == 0 )
     	return;
 
+    // todo
+    printf( "next server received packet\n" );
+
     next_assert( packet_bytes > 0 );
 
     int begin = 0;
@@ -13928,6 +13940,8 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
 
     if ( server->packet_receive_callback )
     {
+    	printf( "receive packet callback exists\n" );
+
     	void * callback_data = server->packet_receive_callback_data;
 
 	    server->packet_receive_callback( callback_data, &from, packet_data, &begin, &end );
@@ -13937,6 +13951,10 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
 
 	    if ( end - begin <= 0 )
 	        return;    	
+    }
+    else
+    {
+    	printf( "receive packet callback is null\n" );
     }
 
 #if NEXT_DEVELOPMENT
@@ -16026,6 +16044,12 @@ void next_server_set_payload_receive_callback( struct next_server_t * server, in
         next_platform_mutex_guard( &server->internal->command_mutex );
         next_queue_push( server->internal->command_queue, command );
     }
+}
+
+next_platform_socket_t * next_server_socket( next_server_t * server )
+{
+	next_assert( server );
+	return server->internal->socket;
 }
 
 // ---------------------------------------------------------------

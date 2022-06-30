@@ -1,23 +1,5 @@
 DONE
 
-	Disabled advanced packet filter in dev.
-
-	Get the server actually initing with the server backend 5 in dev.
-
-	Include client ready check in func tests
-
-	Make func backend 5 retry socket creation
-
-TODO
-
-	Make func backend 4 retry socket creation
-
-	Backport client ready to sdk5
-
-	Include client ready check in func tests 4
-
-	------------
-
 	Get the client actually upgraded.
 
 	Clearly we need a trigger on the server side to actually upgrade the client.
@@ -26,7 +8,21 @@ TODO
 
 	If it's a new client address, we should upgrade it.
 
+	Got a bit of a chicken and egg going here... no packets ever go to the next thread, until it is upgraded.
 
+	Need to work out a strategy to get the upgrade done, without creating locks and contention between threads.
+
+	Once every ~1000 packets (assume 100 packets per-second), this would give us roughly one packet every 10 secs.
+
+	This packet could do the upgrade, and packet loss would be very unlikely between the local sockets.
+
+	This way we could trigger the upgrade, without making all the direct packets go through the next server.
+
+	I think this is the way we should start now...
+
+TODO
+	
+	Something wrong with the socket when trying to send to next socket. What is it?
 
 
 
