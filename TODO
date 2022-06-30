@@ -1,28 +1,69 @@
 DONE
 
-	Pass the thread number and slot id to network next via the packet (pack into two 16 byte values)
+	Disabled advanced packet filter in dev.
 
-	Implement code in the next receive packet callback to unpack this data
-	
-	Update session table so it has a "update" method, eg. insert or keep in set if already existing.
-
-	Extend receive packet callback so it has a void * data passed to it.
-
-	Setup the code to swap the session table in the next thread every 60 seconds.
-
-	Setup the code to forward packet to server from next payload receive callbacke.
+	Get the server actually initing with the server backend 5 in dev.
 
 TODO
 
+	Get the client actually upgraded.
+
+	Clearly we need a trigger on the server side to actually upgrade the client.
+
+	I think in this case, when we update the session, we need to know if it is a new client address or not.
+
+	If it's a new client address, we should upgrade it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	--------------
 
-	Backport all changes to SDK5 to the main repo and verify that functional tests still pass.
+	There will need to be adjustments made to the chonkle and pittle by the proxy, in both directions, to make sure they pass the advanced packet filter. FML.
 
 	--------------
-
-	Get the server actually initing with the server backend 5.
 
 	Verify that network next acceleration works through the proxy.
+
+	--------------
 
 	Load test again in google, to make sure nothing has broken.
 

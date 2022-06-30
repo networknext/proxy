@@ -1270,7 +1270,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, packet_data + 1, packet_bytes - 1 );
 	  		}
 		}
-		// else
+		else
 		{
 			// other packet types
 
@@ -1424,8 +1424,6 @@ void next_packet_received( next_server_t * server, void * context, const next_ad
 
 void next_packet_receive_callback( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end )
 {
-	printf( "*** packet receive callback ***\n" );
-
 	next_thread_data_t * thread_data = ( next_thread_data_t*) data;
 
 	// ignore any packet that's too short to be valid
@@ -1460,6 +1458,9 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 	}
 
 	// set the from address to the address that sent the packet to the proxy
+
+	// todo
+	printf( "forwarding packet type %d to next server\n", packet_type );
 
 	from->type = NEXT_ADDRESS_IPV4;
 	from->data.ipv4[0] = packet_data[1];
@@ -1674,7 +1675,8 @@ int main( int argc, char * argv[] )
 
     if ( !server_mode )
     {
-		next_quiet( true );
+    	// todo
+		// next_quiet( true );
 
 	    next_config_t next_config;
 	    next_default_config( &next_config );

@@ -42,6 +42,7 @@
 #define NEXT_SERVER_BACKEND_HOSTNAME                "prod5.spacecats.net"
 #else // #if !NEXT_DEVELOPMENT
 #define NEXT_SERVER_BACKEND_HOSTNAME                 "dev5.spacecats.net"
+#define NEXT_DISABLE_ADVANCED_PACKET_FILTER                             1
 #endif // #if !NEXT_DEVELOPMENT
 #define NEXT_SERVER_BACKEND_PORT                                  "40000"
 
@@ -483,7 +484,7 @@ void next_quiet( NEXT_BOOL flag )
     log_quiet = flag;
 }
 
-static int log_level = NEXT_LOG_LEVEL_DEBUG; //todo INFO;
+static int log_level = NEXT_LOG_LEVEL_INFO;
 
 void next_log_level( int level )
 {
@@ -3468,12 +3469,31 @@ void next_address_data( const next_address_t * address, uint8_t * address_data, 
 
 bool next_advanced_packet_filter( const uint8_t * data, const uint8_t * magic, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length )
 {
+#if NEXT_DISABLE_ADVANCED_PACKET_FILTER
+
+	(void) data;
+	(void) magic;
+	(void) from_address;
+	(void) from_address_bytes;
+	(void) from_port;
+	(void) to_address;
+	(void) to_address_bytes;
+	(void) to_port;
+	(void) packet_length;
+
+	return true;
+
+#else // #if NEXT_DISABLE_ADVANCED_PACKET_FILTER
+
     if ( data[0] == 0 )
         return true;
+
     if ( packet_length < 18 )
         return false;
+    
     uint8_t a[15];
     uint8_t b[2];
+
     next_generate_chonkle( a, magic, from_address, from_address_bytes, from_port, to_address, to_address_bytes, to_port, packet_length );
     next_generate_pittle( b, from_address, from_address_bytes, from_port, to_address, to_address_bytes, to_port, packet_length );
     if ( memcmp( a, data + 1, 15 ) != 0 )
@@ -3481,6 +3501,8 @@ bool next_advanced_packet_filter( const uint8_t * data, const uint8_t * magic, c
     if ( memcmp( b, data + packet_length - 2, 2 ) != 0 )
         return false;
     return true;
+
+#endif // #if NEXT_DISABLE_ADVANCED_PACKET_FILTER
 }
 
 // --------------------------------------------------
@@ -12794,16 +12816,16 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         {
             uint8_t magic[8];
             memset( magic, 0, sizeof(magic) );
-            if ( !next_advanced_packet_filter( packet_data + begin, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, begin - end ) )
+            if ( !next_advanced_packet_filter( packet_data + begin, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, end - begin ) )
             {
-                next_printf( NEXT_LOG_LEVEL_DEBUG, "server advanced packet filter dropped packet (backend)" );
+            	next_printf( NEXT_LOG_LEVEL_DEBUG, "server advanced packet filter dropped packet (backend)" );
                 return;
             }
-
-            begin += 16;
-            end -= 2;
         }
     }
+
+	begin += 16;
+	end -= 2;
 
     if ( server->state == NEXT_SERVER_STATE_INITIALIZING )
     {
@@ -12925,9 +12947,6 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_DIRECT_PACKET )
     {
-    	begin += 16;
-    	end -= 2;
-
     	const int packet_bytes = end - begin;
 
         if ( packet_bytes <= 9 )
@@ -13623,7 +13642,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
-        next_session_entry_t * entry = next_server_internal_process_client_to_server_packet( server, packet_id, packet_data, packet_bytes );
+        next_session_entry_t * entry = next_server_internal_process_client_to_server_packet( server, packet_id, packet_data + begin, packet_bytes );
         if ( !entry )
         {
             // IMPORTANT: There is no need to log this case, because next_server_internal_process_client_to_server_packet already
@@ -13659,7 +13678,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
             return;
         }
 
-        next_session_entry_t * entry = next_server_internal_process_client_to_server_packet( server, packet_id, packet_data, packet_bytes );
+        next_session_entry_t * entry = next_server_internal_process_client_to_server_packet( server, packet_id, packet_data + begin, packet_bytes );
         if ( !entry )
         {
             next_printf( NEXT_LOG_LEVEL_DEBUG, "server ignored next ping packet. did not verify" );
@@ -13866,7 +13885,12 @@ void next_server_internal_process_passthrough_packet( next_server_internal_t * s
 
     if ( packet_bytes <= NEXT_MTU )
     {
-    	// todo: callback here for immediate receive packet processing
+    	if ( server->payload_receive_callback )
+    	{
+    		void * callback_data = server->payload_receive_callback_data;
+    		if ( server->payload_receive_callback( callback_data, from, packet_data, packet_bytes ) )
+	    		return;
+    	}
 
         next_server_notify_packet_received_t * notify = (next_server_notify_packet_received_t*) next_malloc( server->context, sizeof( next_server_notify_packet_received_t ) );
         notify->type = NEXT_SERVER_NOTIFY_PACKET_RECEIVED;
@@ -15707,7 +15731,7 @@ void next_server_send_packet( next_server_t * server, const next_address_t * to_
             next_assert( next_basic_packet_filter( direct_packet_data, direct_packet_bytes ) );
             next_assert( next_advanced_packet_filter( direct_packet_data, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, direct_packet_bytes ) );
 
-            next_server_send_packet_to_address( server, &session_address, direct_packet_data, direct_packet_bytes );
+            next_server_send_packet_to_address( server, to_address, direct_packet_data, direct_packet_bytes );
         }
     }
     else
@@ -15723,6 +15747,7 @@ void next_server_send_packet_direct( next_server_t * server, const next_address_
     next_server_verify_sentinels( server );
 
     next_assert( to_address );
+    next_assert( to_address->type != NEXT_ADDRESS_NONE );
     next_assert( packet_data );
     next_assert( packet_bytes >= 0 );
     next_assert( packet_bytes <= NEXT_MTU );
@@ -16035,9 +16060,6 @@ void next_mutex_destroy( next_mutex_t * mutex )
 }
 
 // ---------------------------------------------------------------
-
-// todo
-#define NEXT_COMPILE_WITH_TESTS 1
 
 #if NEXT_COMPILE_WITH_TESTS
 
@@ -17706,6 +17728,8 @@ void test_basic_packet_filter()
 
 void test_advanced_packet_filter()
 {
+#if !NEXT_DISABLE_ADVANCED_PACKET_FILTER
+
     uint8_t output[256];
     memset( output, 0, sizeof(output) );
     uint64_t pass = 0;
@@ -17732,6 +17756,8 @@ void test_advanced_packet_filter()
         }
     }
     next_check( pass == 0 );
+
+#endif // #if !NEXT_DISABLE_ADVANCED_PACKET_FILTER
 }
 
 void test_passthrough()

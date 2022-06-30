@@ -76,7 +76,7 @@ int main()
 
     memset( received_packets, 0xFF, sizeof(received_packets) );
     
- 	next_quiet( true );
+ 	// next_quiet( true );
 
     next_config_t config;
     next_default_config( &config );
