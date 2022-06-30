@@ -4,7 +4,19 @@ DONE
 
 	Get the server actually initing with the server backend 5 in dev.
 
+	Include client ready check in func tests
+
+	Make func backend 5 retry socket creation
+
 TODO
+
+	Make func backend 4 retry socket creation
+
+	Backport client ready to sdk5
+
+	Include client ready check in func tests 4
+
+	------------
 
 	Get the client actually upgraded.
 
