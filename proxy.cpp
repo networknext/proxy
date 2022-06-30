@@ -1438,17 +1438,10 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 	next_thread_data_t * thread_data = ( next_thread_data_t*) data;
 
-	// todo: crashy crashy
-	(void) thread_data;
+	assert( thread_data );
+
+	// todo
 	(void) from;
-	(void) packet_data;
-
-	printf( "STOP\n" );
-	*begin = 0;
-	*end = 0;
-	return;
-
-#if 0
 
 	// ignore any packet that's too short to be valid
 
@@ -1463,7 +1456,7 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 		return;
 	}
 
-	// ignore packet types we aren't expecting
+	// only modify certain packet types, otherwise return
 
 	const uint8_t packet_type = packet_data[0];
 
@@ -1480,6 +1473,7 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 		case NEXT_CLIENT_STATS_PACKET:
 		case NEXT_ROUTE_UPDATE_ACK_PACKET:
 			break;
+
 		default:
 			return;
 	}
@@ -1489,6 +1483,8 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 	const int thread_id = ( int(packet_data[7]) << 8 ) | ( int(packet_data[8]) );
 	const int slot_id = ( int(packet_data[9]) << 8 ) | ( int(packet_data[10]) );
 	const int socket_index = thread_id * config.num_slots_per_thread + slot_id;
+
+	assert( thread_data->session_table );
 
 	if ( session_table_update( thread_data->session_table, (proxy_address_t*) from, socket_index ) )
 	{
@@ -1524,7 +1520,9 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 		return;
 	}
 
-	printf( "packet type is %d\n", packet_type );
+	printf( "non-passthrough packet type is %d\n", packet_type );
+
+#if 0
 
 	// -----------------------
 
@@ -1757,11 +1755,20 @@ int main( int argc, char * argv[] )
     // create next server (manages its own internal socket)
 
 	next_server_t * next_server = NULL;
+	next_thread_data_t * next_thread_data = NULL;
 
-    if ( !server_mode )
+	if ( !server_mode )
     {
     	// todo
 		// next_quiet( true );
+
+		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
+
+		if ( !next_thread_data )
+		{
+			printf( "error: could not create next thread data\n" );
+			exit(1);
+		}
 
 	    next_config_t next_config;
 	    next_default_config( &next_config );
@@ -1781,11 +1788,11 @@ int main( int argc, char * argv[] )
 	        exit(1);
 	    }
 
-	    next_server_set_packet_receive_callback( next_server, next_packet_receive_callback, thread_data );
+	    next_server_set_packet_receive_callback( next_server, next_packet_receive_callback, next_thread_data );
 
-	    next_server_set_send_packet_to_address_callback( next_server, next_send_packet_to_address_callback, thread_data );
+	    next_server_set_send_packet_to_address_callback( next_server, next_send_packet_to_address_callback, next_thread_data );
 
-	    next_server_set_payload_receive_callback( next_server, next_payload_receive_callback, thread_data );
+	    next_server_set_payload_receive_callback( next_server, next_payload_receive_callback, next_thread_data );
 
 	    // IMPORTANT: block and wait until server is ready. This means all callbacks are registered and ready to go
 	    while ( !quit )
@@ -1833,13 +1840,10 @@ int main( int argc, char * argv[] )
 	}
 
 	proxy_platform_thread_t * next_thread = NULL;
-	next_thread_data_t * next_thread_data = NULL;
 
 	if ( !server_mode )
 	{
 		// create next thread
-
-		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 
 		next_thread_data->next_server = next_server;
 		next_thread_data->thread_sockets = thread_sockets;

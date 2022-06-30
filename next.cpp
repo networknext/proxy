@@ -13931,7 +13931,7 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
     	return;
 
     // todo
-    printf( "next server received packet\n" );
+    printf( "next server received packet: %d bytes\n", packet_bytes );
 
     next_assert( packet_bytes > 0 );
 

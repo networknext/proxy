@@ -20,9 +20,21 @@ DONE
 
 	I think this is the way we should start now...
 
+	Something wrong with the socket when trying to send to next socket. What is it?
+
+	There's definitely something funky with the callbacks.
+
+	The simple truth is that they really need to be passed in at create time, or they're garbage.
+
+	Perhaps a next_server_callback_t * struct passed in to create?
+
+	Until then, let's try to see what teh fuck is going on causing crashes...
+
+	Next thread data was messed up. fixed now.
+
 TODO
 	
-	Something wrong with the socket when trying to send to next socket. What is it?
+	Get everything back on track, and then clean up the callbacks. They must be passed in to next_create_server.
 
 
 
