@@ -1,69 +1,14 @@
 DONE
 
-	Get the client actually upgraded.
-
-	Clearly we need a trigger on the server side to actually upgrade the client.
-
-	I think in this case, when we update the session, we need to know if it is a new client address or not.
-
-	If it's a new client address, we should upgrade it.
-
-	Got a bit of a chicken and egg going here... no packets ever go to the next thread, until it is upgraded.
-
-	Need to work out a strategy to get the upgrade done, without creating locks and contention between threads.
-
-	Once every ~1000 packets (assume 100 packets per-second), this would give us roughly one packet every 10 secs.
-
-	This packet could do the upgrade, and packet loss would be very unlikely between the local sockets.
-
-	This way we could trigger the upgrade, without making all the direct packets go through the next server.
-
-	I think this is the way we should start now...
-
-	Something wrong with the socket when trying to send to next socket. What is it?
-
-	There's definitely something funky with the callbacks.
-
-	The simple truth is that they really need to be passed in at create time, or they're garbage.
-
-	Perhaps a next_server_callback_t * struct passed in to create?
-
-	Until then, let's try to see what teh fuck is going on causing crashes...
-
-	Next thread data was messed up. fixed now.
-
-	Get everything back on track, and then clean up the callbacks. They must be passed in to next_create_server.
-
-	Upgrade seems to be completing now.	
-
-	Client is getting a direct route and it's updating every 10 secs.
-
-	It seems that direct packets are being sent from client -> next server -> server.
+	Fix the code that gets the client upgraded so it only forwards a single packet.
 
 TODO
 
-	Next packets code path in the client -> server direction is working.
+	Work out how to get the server -> proxy packets funneled to network next, when a next route is available.
 
-	What needs to happen now is work out how packets from the server -> client direction get shunted to the next thread,
-	but only when the session is upgraded.
+	It's not even upgraded, it's -- is this slot on network next right now.
 
-	This is going to be a bit tricky...
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	--------------
 
 
 

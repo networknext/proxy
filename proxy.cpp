@@ -36,13 +36,13 @@ const char * next_backend_hostname = "dev5.spacecats.net";
 const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c9Dhwr4ZaTkEWyX2Li5Ph/UFrw8QS8hAD9SQZkuVP6x14tEcqxWppmrvbdn";
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
-const char * server_address = "10.128.0.7:40000";		// google cloud
+const char * proxy_address = "10.128.0.7:40000";		// google cloud
 const char * server_address = "10.128.0.3:40000";		// google cloud
 const int proxy_port = 40000;
 const int server_port = 40000;
 #else
-const char * server_address = "127.0.0.1:50000";		// local testing
 const char * proxy_address = "127.0.0.1:40000";			// local testing
+const char * server_address = "127.0.0.1:50000";		// local testing
 const int proxy_port = 40000;
 const int server_port = 50000;
 #endif
@@ -129,11 +129,13 @@ bool proxy_init()
 
 	config.max_packet_size = 1500;
 
-	config.proxy_thread_data_bytes = 10 * 1024 * 1024;
+	config.proxy_thread_data_bytes = 1 * 1024 * 1024;
 	config.slot_thread_data_bytes = 1 * 1024 * 1024;
-	config.next_thread_data_bytes = 10 * 1024 * 1024;
+	config.next_thread_data_bytes = 1 * 1024 * 1024;
 
 	config.slot_timeout_seconds = 60;
+
+	config.slot_base_port = 10000;
 
 	memset( &config.slot_bind_address, 0, sizeof(proxy_address_t) );
 	config.slot_bind_address.type = PROXY_ADDRESS_IPV4;
@@ -996,7 +998,7 @@ extern void next_tests();
 
 void run_tests()
 {
-	next_quiet( true );
+	// next_quiet( true );
 
     next_config_t next_config;
     next_default_config( &next_config );
@@ -1193,8 +1195,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 		if ( current_time - last_swap_time > config.slot_timeout_seconds / 2 )
 		{
-			// todo
-			printf( "proxy thread %d swap\n", thread_data->thread_number );
+			debug_printf( "proxy thread %d swap\n", thread_data->thread_number );
 			session_table_swap( thread_data->session_table );
 			last_swap_time = current_time;
 		}
@@ -1275,13 +1276,30 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	            assert( slot >= 0 );
 	            assert( slot < config.num_slots_per_thread );
 
-	  			debug_printf( "proxy thread %d forwarded packet to server for slot %d\n", thread_data->thread_number, slot );
-				
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, packet_data + 1, packet_bytes - 1 );
+
+				// todo: when the upgrade below is turned on -- packets are lost. what is going on?
+
+				/*
+				// send dummy passthrough packet to the next thread so it sees the new client and upgrades it
+
+	            packet_data[0] = NEXT_PASSTHROUGH_PACKET;
+	            packet_data[1] = from.data.ipv4[0];
+	            packet_data[2] = from.data.ipv4[1];
+	            packet_data[3] = from.data.ipv4[2];
+	            packet_data[4] = from.data.ipv4[3];
+	            packet_data[5] = uint8_t( from.port >> 8 );
+	            packet_data[6] = uint8_t( from.port );
+	            packet_data[7] = uint8_t( thread_data->thread_number >> 8 );
+	            packet_data[8] = uint8_t( thread_data->thread_number );
+	            packet_data[9] = uint8_t( slot >> 8 );
+	            packet_data[10] = uint8_t( slot );
+
+				next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_address, packet_data, prefix + 1 );
+				*/
 	  		}
 		}
-		// todo: temporary hack to get next thread upgrading and doing stuff
-		// else
+		else
 		{
 			// other packet types
 
@@ -1329,6 +1347,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
             packet_data[10] = uint8_t( slot );
 
             // forward packet to next server
+
+            // printf( "forward packet %d to next server\n", packet_type );
 
 			next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_address, packet_data, packet_bytes );
 		}
@@ -1492,15 +1512,12 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 	{
 		// new session
 
-		// todo: we can't *really* talk to the next server here, we're off the main thread
-		// but we can talk to the next internal server, we're on the receive thread for that!
-
 		if ( next_server_ready( thread_data->next_server ) )
 		{
 			char buffer[1024];
 			const char * address_string = next_address_to_string( from, buffer );
 			uint64_t session_id = next_server_upgrade_session( thread_data->next_server, from, address_string );
-			printf( "next thread upgraded client address %s to session %llx\n", address_string, session_id );
+			printf( "next thread upgraded client %s to session %llx\n", address_string, session_id );
 		}
 	}
 
@@ -1521,8 +1538,7 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 	if ( time_since_last_swap >= config.slot_timeout_seconds )
 	{
-		// todo
-		printf( "next thread swap\n" );
+		debug_printf( "next thread swap\n" );
 		session_table_swap( thread_data->session_table );
 		thread_data->last_session_table_swap_time = current_time;
 	}
@@ -1601,7 +1617,7 @@ int main( int argc, char * argv[] )
 
     if ( server_mode )
     {
-		printf( "network next server\n" );
+		printf( "server mode\n" );
     }
     else if ( test_mode )
     {
@@ -1634,6 +1650,8 @@ int main( int argc, char * argv[] )
 
     if ( !server_mode )
     {
+    	printf( "creating %d slot sockets on ports [%d,%d]\n", num_slot_sockets, config.slot_base_port, config.slot_base_port + num_slot_sockets - 1 );
+
 	    for ( int i = 0; i < num_slot_sockets; ++i )
 	    {
 			proxy_address_t bind_address = config.slot_bind_address;
@@ -1651,6 +1669,15 @@ int main( int argc, char * argv[] )
 	}
 
     // create thread sockets prior to actually creating threads, to avoid race conditions
+
+    if ( !server_mode )
+    {
+    	printf( "creating %d proxy sockets on port %d\n", config.num_threads, config.proxy_bind_address.port );
+    }
+    else
+    {
+    	printf( "creating %d server sockets on port %d\n", config.num_threads, config.server_bind_address.port );
+    }
 
     proxy_thread_data_t * thread_data[config.num_threads];
 
@@ -1704,8 +1731,9 @@ int main( int argc, char * argv[] )
 
 	if ( !server_mode )
     {
-    	// todo
-		// next_quiet( true );
+    	printf( "creating network next server on port %d\n", config.next_address.port );
+
+		next_quiet( true );
 
 		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 
