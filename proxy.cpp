@@ -1173,7 +1173,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 	while ( true )
 	{
-		const int prefix = 7;
+		const int prefix = 11;
 
 		uint8_t buffer[prefix + config.max_packet_size];
 
@@ -1295,16 +1295,16 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
             switch ( packet_type )
             {
-            	case NEXT_PASSTHROUGH_PACKET:                       /*printf( "NEXT_PASSTHROUGH_PACKET\n" );  */                        break;
-            	case NEXT_DIRECT_PACKET:							printf( "NEXT_DIRECT_PACKET\n" ); 								break;
-            	case NEXT_DIRECT_PING_PACKET:						printf( "NEXT_DIRECT_PING_PACKET\n" ); 							break;
-				case NEXT_UPGRADE_RESPONSE_PACKET:  				printf( "NEXT_UPGRADE_RESPONSE_PACKET\n" );	    				break;
-				case NEXT_ROUTE_REQUEST_PACKET:     				printf( "NEXT_ROUTE_REQUEST_PACKET\n" );						break; 
-				case NEXT_CLIENT_TO_SERVER_PACKET:     				printf( "NEXT_CLIENT_TO_SERVER_PACKET\n" );						break; 
-				case NEXT_PING_PACKET:     							printf( "NEXT_PING_PACKET\n" );									break; 
-				case NEXT_CONTINUE_REQUEST_PACKET:     				printf( "NEXT_CONTINUE_REQUEST_PACKET\n" );						break; 
-				case NEXT_CLIENT_STATS_PACKET:     					printf( "NEXT_CLIENT_STATS_PACKET\n" );							break; 
-				case NEXT_ROUTE_UPDATE_ACK_PACKET:					printf( "NEXT_ROUTE_UPDATE_ACK_PACKET\n" );						break;
+            	case NEXT_PASSTHROUGH_PACKET:
+            	case NEXT_DIRECT_PACKET:
+            	case NEXT_DIRECT_PING_PACKET:
+				case NEXT_UPGRADE_RESPONSE_PACKET:
+				case NEXT_ROUTE_REQUEST_PACKET:
+				case NEXT_CLIENT_TO_SERVER_PACKET:
+				case NEXT_PING_PACKET:
+				case NEXT_CONTINUE_REQUEST_PACKET:
+				case NEXT_CLIENT_STATS_PACKET:
+				case NEXT_ROUTE_UPDATE_ACK_PACKET:
 				default:
 					break;
             }
@@ -1434,14 +1434,9 @@ void next_packet_received( next_server_t * server, void * context, const next_ad
 
 void next_packet_receive_callback( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end )
 {
-	printf( "next_packet_receive_callback\n" );
-
 	next_thread_data_t * thread_data = ( next_thread_data_t*) data;
 
 	assert( thread_data );
-
-	// todo
-	(void) from;
 
 	// ignore any packet that's too short to be valid
 
@@ -1449,8 +1444,6 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 	if ( packet_bytes <= 11 )
 	{
-		// todo
-		printf( "packet too small\n" );
 		*begin = 0;
 		*end = 0;
 		return;
@@ -1478,6 +1471,15 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 			return;
 	}
 
+	// set the from address to the address that sent the packet to the proxy
+
+	from->type = NEXT_ADDRESS_IPV4;
+	from->data.ipv4[0] = packet_data[1];
+	from->data.ipv4[1] = packet_data[2];
+	from->data.ipv4[2] = packet_data[3];
+	from->data.ipv4[3] = packet_data[4];
+	from->port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
+
 	// detect new client sessions and upgrade them
 
 	const int thread_id = ( int(packet_data[7]) << 8 ) | ( int(packet_data[8]) );
@@ -1490,14 +1492,7 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 	{
 		// new session
 
-		// todo
-		char buffer[1024];
-		const char * address_string = next_address_to_string( from, buffer );
-		const uint64_t session_id = 0; // todo
-		printf( "next thread upgraded client address %s to session %llx\n", address_string, session_id );
-
-		/*
-		// todo: we can't actually talk to the next server here, we're off the main thread
+		// todo: we can't *really* talk to the next server here, we're off the main thread
 		// but we can talk to the next internal server, we're on the receive thread for that!
 
 		if ( next_server_ready( thread_data->next_server ) )
@@ -1507,36 +1502,16 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 			uint64_t session_id = next_server_upgrade_session( thread_data->next_server, from, address_string );
 			printf( "next thread upgraded client address %s to session %llx\n", address_string, session_id );
 		}
-		*/
 	}
 
 	// if it is a passthrough packet, stop here. these are just sent so we can upgrade sessions
 
 	if ( packet_type == NEXT_PASSTHROUGH_PACKET )
 	{
-		printf( "STOP\n" );
 		*begin = 0;
 		*end = 0;
 		return;
 	}
-
-	printf( "non-passthrough packet type is %d\n", packet_type );
-
-#if 0
-
-	// -----------------------
-
-	// set the from address to the address that sent the packet to the proxy
-
-	// todo
-	printf( "forwarding packet type %d to next server\n", packet_type );
-
-	from->type = NEXT_ADDRESS_IPV4;
-	from->data.ipv4[0] = packet_data[1];
-	from->data.ipv4[1] = packet_data[2];
-	from->data.ipv4[2] = packet_data[3];
-	from->data.ipv4[3] = packet_data[4];
-	from->port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
 
 	// swap the session table double buffer every n seconds
 
@@ -1555,21 +1530,10 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 	// adjust begin index forward
 
 	*begin += 11;
-
-#endif
 }
 
 int next_send_packet_to_address_callback( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes )
 {
-	printf( "*** send packet to address callback ***\n" );
-
-	(void) data;
-	(void) address;
-	(void) packet_data;
-	(void) packet_bytes;
-
-	// todo: disable
-	/*
 	next_thread_data_t * thread_data = (next_thread_data_t*) data;
 
 	next_assert( thread_data );
@@ -1579,44 +1543,25 @@ int next_send_packet_to_address_callback( void * data, const next_address_t * ad
 	const int index = hash % config.num_threads;
 
 	proxy_platform_socket_send_packet( thread_data->thread_sockets[index], (const proxy_address_t*) address, packet_data, packet_bytes );
-	*/
 
 	return 1;
 }
 
-int next_payload_receive_callback( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes )
+int next_payload_receive_callback( void * data, const next_address_t * from, const uint8_t * payload_data, int payload_bytes )
 {
-	printf( "*** payload receive callback ***\n" );
-	fflush( stdout );
-
-	// todo: this is busted
-	(void) data;
-	(void) client_address;
-	(void) payload_data;
-	(void) payload_bytes;
-
-	return 1;
-
-	/*
-
 	next_thread_data_t * thread_data = (next_thread_data_t*) data;
 
 	next_assert( thread_data );
 
-	int socket_index = session_table_get( thread_data->session_table, (proxy_address_t*) client_address );
+	int socket_index = session_table_get( thread_data->session_table, (proxy_address_t*) from );
 	if ( socket_index < 0 )
 		return 1;
 
 	proxy_platform_socket_t * socket = thread_data->slot_sockets[socket_index];
 
-	// todo
-
-	printf( "next thread forwarded packet to server\n" );
-
-	// proxy_platform_socket_send_packet( socket, &config.server_address, payload_data, payload_bytes );
+	proxy_platform_socket_send_packet( socket, &config.server_address, payload_data, payload_bytes );
 
 	return 1;
-	*/
 }
 
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC next_thread_function( void * data )

@@ -32,10 +32,22 @@ DONE
 
 	Next thread data was messed up. fixed now.
 
-TODO
-	
 	Get everything back on track, and then clean up the callbacks. They must be passed in to next_create_server.
 
+	Upgrade seems to be completing now.	
+
+	Client is getting a direct route and it's updating every 10 secs.
+
+	It seems that direct packets are being sent from client -> next server -> server.
+
+TODO
+
+	Next packets code path in the client -> server direction is working.
+
+	What needs to happen now is work out how packets from the server -> client direction get shunted to the next thread,
+	but only when the session is upgraded.
+
+	This is going to be a bit tricky...
 
 
 
