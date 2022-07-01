@@ -6,6 +6,12 @@ DONE
 
 TODO
 
+	--------------
+
+	Implement a config option to force passthrough direct.
+
+	Once this is done, we should have a performant system that sends direct packets through fast-path, and only sends accelerated packets and internal network next packets through the next server thread.
+
 	-------------
 
 	Then create a new callback when a session changes route.
@@ -15,12 +21,6 @@ TODO
 	Then we can set the "next" flag appropriately in the slot thread data under mutex.
 
 	This way we can dynamically shunt threads through next, only when the session is on next, and then when direct, do them via passthrough server -> client.
-
-	--------------
-
-	Now implement a config option to force passthrough direct.
-
-	Once this is done, we should have a performant system that sends direct packets through fast-path, and only sends accelerated packets and internal network next packets through the next server thread.
 
 	--------------
 

@@ -174,6 +174,7 @@ struct next_config_t
     int socket_receive_buffer_size;
     NEXT_BOOL disable_network_next;
     NEXT_BOOL disable_autodetect;
+    NEXT_BOOL force_passthrough_direct;
 };
 
 NEXT_EXPORT_FUNC void next_default_config( struct next_config_t * config );

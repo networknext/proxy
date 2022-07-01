@@ -4130,6 +4130,7 @@ struct next_config_internal_t
     int socket_receive_buffer_size;
     bool disable_network_next;
     bool disable_autodetect;
+    bool force_passthrough_direct;
 };
 
 static next_config_internal_t next_global_config;
@@ -4286,6 +4287,25 @@ int next_init( void * context, next_config_t * config_in )
     if ( config.disable_autodetect )
     {
         next_printf( NEXT_LOG_LEVEL_INFO, "autodetect is disabled" );
+    }
+
+    config.force_passthrough_direct = config_in ? config_in->force_passthrough_direct : false;
+
+    const char * next_force_passthrough_direct_override = next_platform_getenv( "NEXT_FORCE_PASSTHROUGH_DIRECT" );
+    {
+        if ( next_force_passthrough_direct_override != NULL )
+        {
+            int value = atoi( next_force_passthrough_direct_override );
+            if ( value > 0 )
+            {
+                config.force_passthrough_direct = true;
+            }
+        }
+    }
+
+    if ( config.force_passthrough_direct )
+    {
+        next_printf( NEXT_LOG_LEVEL_INFO, "force passthrough direct" );
     }
 
     const char * socket_send_buffer_size_override = next_platform_getenv( "NEXT_SOCKET_SEND_BUFFER_SIZE" );
