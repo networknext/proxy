@@ -999,7 +999,7 @@ extern void next_tests();
 
 void run_tests()
 {
-	// next_quiet( true );
+	next_quiet( true );
 
     next_config_t next_config;
     next_default_config( &next_config );
@@ -1785,7 +1785,7 @@ int main( int argc, char * argv[] )
     {
     	printf( "creating network next server on port %d\n", config.next_address.port );
 
-		next_quiet( true );
+		// next_quiet( true );
 
 		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 
@@ -1797,6 +1797,7 @@ int main( int argc, char * argv[] )
 
 	    next_config_t next_config;
 	    next_default_config( &next_config );
+	    next_config.force_passthrough_direct = true;
 	    strncpy( next_config.server_backend_hostname, next_backend_hostname, sizeof(next_config.server_backend_hostname) - 1 );
 	    strncpy( next_config.customer_private_key, next_customer_private_key, sizeof(next_config.customer_private_key) - 1 );
 
