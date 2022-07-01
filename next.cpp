@@ -3301,7 +3301,7 @@ struct NextRouteUpdateAckPacket
     }
 };
 
-static void next_generate_pittle( uint8_t * output, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length )
+void next_generate_pittle( uint8_t * output, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length )
 {
     next_assert( output );
     next_assert( from_address );
@@ -3336,7 +3336,7 @@ static void next_generate_pittle( uint8_t * output, const uint8_t * from_address
     output[1] = 1 | ( ( 255 - output[0] ) ^ 113 );
 }
 
-static void next_generate_chonkle( uint8_t * output, const uint8_t * magic, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length )
+void next_generate_chonkle( uint8_t * output, const uint8_t * magic, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length )
 {
     next_assert( output );
     next_assert( magic );
@@ -12310,7 +12310,7 @@ void next_server_internal_quit( next_server_internal_t * server )
     server->quit = true;
 }
 
-void next_server_internal_send_packet_to_address( next_server_internal_t * server, const next_address_t * address, const uint8_t * packet_data, int packet_bytes )
+void next_server_internal_send_packet_to_address( next_server_internal_t * server, const next_address_t * address, uint8_t * packet_data, int packet_bytes )
 {
     next_server_internal_verify_sentinels( server );
 
@@ -13899,6 +13899,15 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         if ( session->update_dirty )
         {
             session->update_dirty = false;
+        }
+
+        if ( server->callbacks.route_update_callback )
+        {
+        	void * data = server->callbacks.route_update_callback_data;
+
+        	NEXT_BOOL next = session->update_type != NEXT_UPDATE_TYPE_DIRECT;
+
+        	server->callbacks.route_update_callback( data, &session->address, next );
         }
 
         return;
@@ -15569,7 +15578,7 @@ NEXT_BOOL next_server_session_upgraded( next_server_t * server, const next_addre
     return NEXT_FALSE;
 }
 
-void next_server_send_packet_to_address( next_server_t * server, const next_address_t * address, const uint8_t * packet_data, int packet_bytes )
+void next_server_send_packet_to_address( next_server_t * server, const next_address_t * address, uint8_t * packet_data, int packet_bytes )
 {
     next_server_verify_sentinels( server );
 
@@ -15985,6 +15994,12 @@ next_platform_socket_t * next_server_socket( next_server_t * server )
 {
 	next_assert( server );
 	return server->internal->socket;
+}
+
+const uint8_t * next_server_magic( next_server_t * server )
+{
+	next_assert( server );
+	return server->internal->current_magic;
 }
 
 // ---------------------------------------------------------------

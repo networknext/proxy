@@ -1595,7 +1595,13 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 	*begin += 11;
 }
 
-int next_send_packet_to_address_callback( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes )
+extern const uint8_t * next_server_magic( next_server_t * server );
+extern void next_address_data( const next_address_t * address, uint8_t * address_data, int * address_bytes, uint16_t * address_port );
+extern bool next_basic_packet_filter( const uint8_t * data, int packet_length );
+extern void next_generate_chonkle( uint8_t * output, const uint8_t * magic, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length );
+extern void next_generate_pittle( uint8_t * output, const uint8_t * from_address, int from_address_bytes, uint16_t from_port, const uint8_t * to_address, int to_address_bytes, uint16_t to_port, int packet_length );
+
+int next_send_packet_to_address_callback( void * data, const next_address_t * address, uint8_t * packet_data, int packet_bytes )
 {
 	next_thread_data_t * thread_data = (next_thread_data_t*) data;
 
@@ -1605,18 +1611,47 @@ int next_send_packet_to_address_callback( void * data, const next_address_t * ad
 
 	const int index = hash % config.num_threads;
 
+	if ( packet_data[0] != NEXT_PASSTHROUGH_PACKET )
+	{
+		// adjust chonkle for outgoing packets. must pass advanced packet filter for relays to accept the packet
+
+	    const uint8_t * magic = next_server_magic( thread_data->next_server );
+
+	    uint8_t from_address_data[32];
+	    uint8_t to_address_data[32];
+	    uint16_t from_address_port = 0;
+	    uint16_t to_address_port = 0;
+	    int from_address_bytes = 0;
+	    int to_address_bytes;
+
+	    next_address_data( (const next_address_t*) &config.proxy_address, from_address_data, &from_address_bytes, &from_address_port );
+	    next_address_data( address, to_address_data, &to_address_bytes, &to_address_port );
+
+	    next_generate_chonkle( packet_data + 1, magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes );
+	    
+	    // update pittle for outgoing packets
+
+	    next_generate_pittle( packet_data + packet_bytes - 2, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, packet_bytes );
+
+	    // make sure the packet still passes basic filter after modification
+
+		next_assert( next_basic_packet_filter( packet_data, packet_bytes ) );
+	}
+
+    // send to the client via the slot packet
+
 	proxy_platform_socket_send_packet( thread_data->thread_sockets[index], (const proxy_address_t*) address, packet_data, packet_bytes );
 
 	return 1;
 }
 
-int next_payload_receive_callback( void * data, const next_address_t * from, const uint8_t * payload_data, int payload_bytes )
+int next_payload_receive_callback( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes )
 {
 	next_thread_data_t * thread_data = (next_thread_data_t*) data;
 
 	next_assert( thread_data );
 
-	int socket_index = session_table_get( thread_data->session_table, (proxy_address_t*) from );
+	int socket_index = session_table_get( thread_data->session_table, (proxy_address_t*) client_address );
 	if ( socket_index < 0 )
 		return 1;
 
@@ -1630,6 +1665,34 @@ int next_payload_receive_callback( void * data, const next_address_t * from, con
 	proxy_platform_socket_send_packet( socket, &config.server_address, payload_data, payload_bytes );
 
 	return 1;
+}
+
+void next_route_update_callback( void * data, const next_address_t * client_address, NEXT_BOOL next )
+{
+	next_thread_data_t * thread_data = (next_thread_data_t*) data;
+
+	int index = session_table_get( thread_data->session_table, (proxy_address_t*) client_address );
+	if ( index < 0 )
+		return;
+
+	const int slot_number = index % config.num_slots_per_thread;
+	const int thread_number = index / config.num_threads;
+
+	next_assert( slot_number >= 0 );
+	next_assert( slot_number < config.num_slots_per_thread );
+
+	next_assert( thread_number >= 0 );
+	next_assert( thread_number < config.num_threads );
+
+	next_assert( thread_data->proxy_thread_data );
+
+	proxy_thread_data_t * proxy_thread_data = thread_data->proxy_thread_data[thread_number];
+
+	slot_thread_data_t * slot_thread_data = proxy_thread_data->slot_thread_data[slot_number];
+
+	proxy_platform_mutex_acquire( &slot_thread_data->mutex );
+	slot_thread_data->next = next ? true : false;
+	proxy_platform_mutex_release( &slot_thread_data->mutex );
 }
 
 static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC next_thread_function( void * data )
@@ -1795,6 +1858,8 @@ int main( int argc, char * argv[] )
 			exit(1);
 		}
 
+		next_thread_data->proxy_thread_data = thread_data;
+
 	    next_config_t next_config;
 	    next_default_config( &next_config );
 	    next_config.force_passthrough_direct = true;
@@ -1815,8 +1880,11 @@ int main( int argc, char * argv[] )
 		callbacks.send_packet_to_address_callback_data = next_thread_data;
 		callbacks.payload_receive_callback = next_payload_receive_callback;
 		callbacks.payload_receive_callback_data = next_thread_data;
+		callbacks.route_update_callback = next_route_update_callback;
+		callbacks.route_update_callback_data = next_thread_data;
 
 	    next_server = next_server_create( NULL, next_public_address, next_bind_address, next_datacenter, next_packet_received, &callbacks );
+	    
 	    if ( next_server == NULL )
 	    {
 	        printf( "error: failed to create next server\n" );

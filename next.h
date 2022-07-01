@@ -316,11 +316,14 @@ struct next_server_callbacks_t
 	void (*packet_receive_callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end );
 	void * packet_receive_callback_data;
 
-	int (*send_packet_to_address_callback)( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
+	int (*send_packet_to_address_callback)( void * data, const next_address_t * address, uint8_t * packet_data, int packet_bytes );
 	void * send_packet_to_address_callback_data;
 
 	int (*payload_receive_callback)( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes );
 	void * payload_receive_callback_data;
+
+	void (*route_update_callback)( void * data, const next_address_t * client_address, NEXT_BOOL next );
+	void * route_update_callback_data;
 };
 
 struct next_server_stats_t

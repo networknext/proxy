@@ -7,7 +7,7 @@ solution "proxy"
 	warnings "Extra"
 	floatingpoint "Fast"
 	flags { "FatalWarnings" }
-	defines { "NEXT_COMPILE_WITH_TESTS", "NEXT_DEVELOPMENT=1" }
+	defines { "NEXT_COMPILE_WITH_TESTS", "NEXT_DEVELOPMENT=1", "NEXT_DISABLE_ADVANCED_PACKET_FILTER=1" }
 	filter "configurations:Debug"
 		symbols "On"
 		defines { "_DEBUG" }
