@@ -4,13 +4,13 @@ DONE
 
 	This way we avoid silly commands and delays.
 
-TODO
-
-	--------------
-
 	Implement a config option to force passthrough direct.
 
-	Once this is done, we should have a performant system that sends direct packets through fast-path, and only sends accelerated packets and internal network next packets through the next server thread.
+TODO
+
+	Implement passthrough direct client -> server.
+
+	Implement passthrough direct server -> client.
 
 	-------------
 

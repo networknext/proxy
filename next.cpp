@@ -8717,7 +8717,12 @@ void next_client_send_packet( next_client_t * client, const uint8_t * packet_dat
             if ( result )
             {
 	            next_platform_socket_send_packet( client->internal->socket, &next_to, next_packet_data, next_packet_bytes );
+	    
 	            client->counters[NEXT_CLIENT_COUNTER_PACKET_SENT_NEXT]++;
+		
+		        next_platform_mutex_acquire( &client->internal->packets_sent_mutex );
+		        client->internal->packets_sent++;
+		        next_platform_mutex_release( &client->internal->packets_sent_mutex );
 	        }
 	        else
 	        {
@@ -8728,38 +8733,47 @@ void next_client_send_packet( next_client_t * client, const uint8_t * packet_dat
 
         if ( send_direct )
         {
-            // send direct from client to server
+        	if ( !next_global_config.force_passthrough_direct )
+        	{
+	            // send direct from client to server
 
-            uint8_t from_address_data[32];
-            uint8_t to_address_data[32];
-            uint16_t from_address_port;
-            uint16_t to_address_port;
-            int from_address_bytes;
-            int to_address_bytes;
+	            uint8_t from_address_data[32];
+	            uint8_t to_address_data[32];
+	            uint16_t from_address_port;
+	            uint16_t to_address_port;
+	            int from_address_bytes;
+	            int to_address_bytes;
 
-            next_address_data( &client->client_external_address, from_address_data, &from_address_bytes, &from_address_port );
-            next_address_data( &client->server_address, to_address_data, &to_address_bytes, &to_address_port );
+	            next_address_data( &client->client_external_address, from_address_data, &from_address_bytes, &from_address_port );
+	            next_address_data( &client->server_address, to_address_data, &to_address_bytes, &to_address_port );
 
-            uint8_t direct_packet_data[NEXT_MAX_PACKET_BYTES];
+	            uint8_t direct_packet_data[NEXT_MAX_PACKET_BYTES];
 
-            const int direct_packet_bytes = next_write_direct_packet( direct_packet_data, client->open_session_sequence, send_sequence, packet_data, packet_bytes, client->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port );
+	            const int direct_packet_bytes = next_write_direct_packet( direct_packet_data, client->open_session_sequence, send_sequence, packet_data, packet_bytes, client->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port );
 
-            next_assert( direct_packet_bytes >= 0 );
+	            next_assert( direct_packet_bytes >= 0 );
 
-            next_assert( next_basic_packet_filter( direct_packet_data, direct_packet_bytes ) );
-            next_assert( next_advanced_packet_filter( direct_packet_data, client->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, direct_packet_bytes ) );
+	            next_assert( next_basic_packet_filter( direct_packet_data, direct_packet_bytes ) );
+	            next_assert( next_advanced_packet_filter( direct_packet_data, client->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, direct_packet_bytes ) );
 
-            (void) direct_packet_data;
-            (void) direct_packet_bytes;
+	            (void) direct_packet_data;
+	            (void) direct_packet_bytes;
 
-            next_platform_socket_send_packet( client->internal->socket, &client->server_address, direct_packet_data, direct_packet_bytes );
+	            next_platform_socket_send_packet( client->internal->socket, &client->server_address, direct_packet_data, direct_packet_bytes );
 
-            client->counters[NEXT_CLIENT_COUNTER_PACKET_SENT_DIRECT]++;
+	            client->counters[NEXT_CLIENT_COUNTER_PACKET_SENT_DIRECT]++;
+
+		        next_platform_mutex_acquire( &client->internal->packets_sent_mutex );
+		        client->internal->packets_sent++;
+		        next_platform_mutex_release( &client->internal->packets_sent_mutex );
+        	}
+        	else
+        	{
+        		// send passthrough from client to server
+
+		        next_client_send_packet_direct( client, packet_data, packet_bytes );
+        	}
         }
-
-        next_platform_mutex_acquire( &client->internal->packets_sent_mutex );
-        client->internal->packets_sent++;
-        next_platform_mutex_release( &client->internal->packets_sent_mutex );
     }
     else
     {
@@ -12073,7 +12087,11 @@ next_server_internal_t * next_server_internal_create( void * context, const char
 
     next_server_internal_verify_sentinels( server );
 
-    server->callbacks = *callbacks;
+    if ( callbacks )
+    {
+	    server->callbacks = *callbacks;
+	}
+
     server->context = context;
     server->customer_id = next_global_config.server_customer_id;
     memcpy( server->customer_private_key, next_global_config.customer_private_key, NEXT_CRYPTO_SIGN_SECRETKEYBYTES );
@@ -15213,8 +15231,12 @@ next_server_t * next_server_create( void * context, const char * server_address,
 
     next_server_initialize_sentinels( server );
 
+    if ( callbacks )
+    {
+	    server->callbacks = *callbacks;
+	}
+
     server->context = context;
-    server->callbacks = *callbacks;
     server->internal = next_server_internal_create( context, server_address, bind_address, datacenter, callbacks );
     if ( !server->internal )
     {
@@ -15596,7 +15618,7 @@ void next_server_send_packet( next_server_t * server, const next_address_t * to_
     next_proxy_session_entry_t * entry = next_proxy_session_manager_find( server->session_manager, to_address );
 
     bool send_over_network_next = false;
-    bool send_upgraded_direct = false;
+    bool send_direct = false;
 
     if ( entry )
     {
@@ -15632,7 +15654,7 @@ void next_server_send_packet( next_server_t * server, const next_address_t * to_
         committed = internal_entry->mutex_committed;
         envelope_kbps_down = internal_entry->mutex_envelope_kbps_down;
         send_over_network_next = internal_entry->mutex_send_over_network_next && committed;
-        send_upgraded_direct = !send_over_network_next;
+        send_direct = !send_over_network_next;
         send_sequence = internal_entry->mutex_payload_send_sequence++;
         send_sequence |= uint64_t(1) << 63;
         open_session_sequence = internal_entry->client_open_session_sequence;
@@ -15645,7 +15667,7 @@ void next_server_send_packet( next_server_t * server, const next_address_t * to_
 
         if ( multipath )
         {
-            send_upgraded_direct = true;
+            send_direct = true;
         }
 
         if ( send_over_network_next )
@@ -15663,7 +15685,7 @@ void next_server_send_packet( next_server_t * server, const next_address_t * to_
                 send_over_network_next = false;
                 if ( !multipath )
                 {
-                    send_upgraded_direct = true;
+                    send_direct = true;
                 }
             }
         }
@@ -15694,32 +15716,41 @@ void next_server_send_packet( next_server_t * server, const next_address_t * to_
             next_server_send_packet_to_address( server, &session_address, next_packet_data, next_packet_bytes );
         }
 
-        if ( send_upgraded_direct )
+        if ( send_direct )
         {
-            // direct packet
+        	if ( !next_global_config.force_passthrough_direct )
+        	{
+	            // direct packet
 
-            uint8_t from_address_data[32];
-            uint8_t to_address_data[32];
-            uint16_t from_address_port = 0;
-            uint16_t to_address_port = 0;
-            int from_address_bytes = 0;
-            int to_address_bytes = 0;
+	            uint8_t from_address_data[32];
+	            uint8_t to_address_data[32];
+	            uint16_t from_address_port = 0;
+	            uint16_t to_address_port = 0;
+	            int from_address_bytes = 0;
+	            int to_address_bytes = 0;
 
-            next_address_data( &server->address, from_address_data, &from_address_bytes, &from_address_port );
-            next_address_data( to_address, to_address_data, &to_address_bytes, &to_address_port );
+	            next_address_data( &server->address, from_address_data, &from_address_bytes, &from_address_port );
+	            next_address_data( to_address, to_address_data, &to_address_bytes, &to_address_port );
 
-            uint8_t direct_packet_data[NEXT_MAX_PACKET_BYTES];
+	            uint8_t direct_packet_data[NEXT_MAX_PACKET_BYTES];
 
-            int direct_packet_bytes = next_write_direct_packet( direct_packet_data, open_session_sequence, send_sequence, packet_data, packet_bytes, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port );
+	            int direct_packet_bytes = next_write_direct_packet( direct_packet_data, open_session_sequence, send_sequence, packet_data, packet_bytes, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port );
 
-            next_assert( direct_packet_bytes >= 27 );
-            next_assert( direct_packet_bytes <= NEXT_MTU + 27 );
-            next_assert( direct_packet_data[0] == NEXT_DIRECT_PACKET );
+	            next_assert( direct_packet_bytes >= 27 );
+	            next_assert( direct_packet_bytes <= NEXT_MTU + 27 );
+	            next_assert( direct_packet_data[0] == NEXT_DIRECT_PACKET );
 
-            next_assert( next_basic_packet_filter( direct_packet_data, direct_packet_bytes ) );
-            next_assert( next_advanced_packet_filter( direct_packet_data, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, direct_packet_bytes ) );
+	            next_assert( next_basic_packet_filter( direct_packet_data, direct_packet_bytes ) );
+	            next_assert( next_advanced_packet_filter( direct_packet_data, server->current_magic, from_address_data, from_address_bytes, from_address_port, to_address_data, to_address_bytes, to_address_port, direct_packet_bytes ) );
 
-            next_server_send_packet_to_address( server, to_address, direct_packet_data, direct_packet_bytes );
+	            next_server_send_packet_to_address( server, to_address, direct_packet_data, direct_packet_bytes );
+        	}
+        	else
+        	{
+		        // passthrough packet
+
+		        next_server_send_packet_direct( server, to_address, packet_data, packet_bytes );
+        	}
         }
     }
     else
