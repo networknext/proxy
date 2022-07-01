@@ -310,6 +310,18 @@ NEXT_EXPORT_FUNC NEXT_BOOL next_client_ready( struct next_client_t * client );
 
 // -----------------------------------------
 
+struct next_server_callbacks_t
+{
+	void (*packet_receive_callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end );
+	void * packet_receive_callback_data;
+
+	int (*send_packet_to_address_callback)( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
+	void * send_packet_to_address_callback_data;
+
+	int (*payload_receive_callback)( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes );
+	void * payload_receive_callback_data;
+};
+
 struct next_server_stats_t
 {
     struct next_address_t address;
@@ -350,7 +362,7 @@ struct next_server_stats_t
 
 struct next_server_t;
 
-NEXT_EXPORT_FUNC struct next_server_t * next_server_create( void * context, const char * server_address, const char * bind_address, const char * datacenter, void (*packet_received_callback)( struct next_server_t * server, void * context, const struct next_address_t * from, const uint8_t * packet_data, int packet_bytes ) );
+NEXT_EXPORT_FUNC struct next_server_t * next_server_create( void * context, const char * server_address, const char * bind_address, const char * datacenter, void (*packet_received_callback)( struct next_server_t * server, void * context, const struct next_address_t * from, const uint8_t * packet_data, int packet_bytes ), next_server_callbacks_t * callbacks = NULL );
 
 NEXT_EXPORT_FUNC void next_server_destroy( struct next_server_t * server );
 
@@ -385,12 +397,6 @@ NEXT_EXPORT_FUNC void next_server_event( struct next_server_t * server, const st
 NEXT_EXPORT_FUNC void next_server_match( struct next_server_t * server, const struct next_address_t * address, const char * match_id, const double * match_values, int num_match_values );
 
 NEXT_EXPORT_FUNC void next_server_flush( struct next_server_t * server );
-
-NEXT_EXPORT_FUNC void next_server_set_packet_receive_callback( struct next_server_t * server, void (*callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end ), void * callback_data );
-
-NEXT_EXPORT_FUNC void next_server_set_send_packet_to_address_callback( struct next_server_t * server, int (*callback) ( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes ), void * callback_data );
-
-NEXT_EXPORT_FUNC void next_server_set_payload_receive_callback( struct next_server_t * server, int (*callback) ( void * data, const next_address_t * address, const uint8_t * payload_data, int payload_bytes ), void * callback_data );
 
 // -----------------------------------------
 

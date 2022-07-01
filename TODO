@@ -1,65 +1,28 @@
 DONE
 
-	Fix the code that gets the client upgraded so it only forwards a single packet.
+	Next step is to formalize callbacks into a struct passed in to server create.
 
-	Fix the bug where upgraded direct packets are not getting through on the client.
-
-	It's caused by the packet contents being corrupted:
-
-		client port is 2000
-		client received 100 byte packet 0
-		client received 100 byte packet 1
-		client received 100 byte packet 2
-		client received 100 byte packet 3
-		client received 100 byte packet 4
-		client received 100 byte packet 5
-		client received 100 byte packet 6
-		client received 100 byte packet 7
-		client received 100 byte packet 8
-		client received 100 byte packet 9
-		client received 100 byte packet 10
-		client received 100 byte packet 11
-		client received 100 byte packet 12
-		client received 100 byte packet 13
-		client received 100 byte packet 14
-		client received 100 byte packet 15
-		client received 100 byte packet 16
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-		client received 109 byte packet 58554496032210689
-
-	Next thread is forwarding a 109 byte packet to the server.
-
-	But it should only forward a naked 100 byte packet.
-
-	Why is the payload packet containing crap at the start? Is it prefix data?	
-
-	Fixed. The payload callback wasn't skipping past the direct packet header.
-
-	Also applied same fix for payload callback on client to server next packets.
+	This way we avoid silly commands and delays.
 
 TODO
 
+	-------------
+
+	Then create a new callback when a session changes route.
+
+	We can use this callback to look up the slot for the client address, it will need to use the session map to look it up from address.
+
+	Then we can set the "next" flag appropriately in the slot thread data under mutex.
+
+	This way we can dynamically shunt threads through next, only when the session is on next, and then when direct, do them via passthrough server -> client.
+
 	--------------
 
-	Work out how to get the server -> proxy packets funneled to network next, when a next route is available.
+	Now implement a config option to force passthrough direct.
 
-	It's not even upgraded, it's -- is this slot on network next right now.
+	Once this is done, we should have a performant system that sends direct packets through fast-path, and only sends accelerated packets and internal network next packets through the next server thread.
 
 	--------------
-
-
-
-
 
 
 

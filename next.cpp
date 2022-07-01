@@ -10990,9 +10990,6 @@ int next_read_backend_packet( uint8_t packet_id, uint8_t * packet_data, int begi
 #define NEXT_SERVER_COMMAND_SERVER_EVENT                			2
 #define NEXT_SERVER_COMMAND_MATCH_DATA                  			3
 #define NEXT_SERVER_COMMAND_FLUSH                       			4
-#define NEXT_SERVER_COMMAND_SET_PACKET_RECEIVE_CALLBACK             5
-#define NEXT_SERVER_COMMAND_SET_SEND_PACKET_TO_ADDRESS_CALLBACK     6
-#define NEXT_SERVER_COMMAND_SET_PAYLOAD_RECEIVE_CALLBACK            7
 
 struct next_server_command_t
 {
@@ -11030,24 +11027,6 @@ struct next_server_command_match_data_t : public next_server_command_t
 struct next_server_command_flush_t : public next_server_command_t
 {
     // ...
-};
-
-struct next_server_command_set_packet_receive_callback_t : public next_server_command_t
-{
-    void (*callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end );
-    void * callback_data;
-};
-
-struct next_server_command_set_send_packet_to_address_callback_t : public next_server_command_t
-{
-    int (*callback) ( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
-    void * callback_data;
-};
-
-struct next_server_command_set_payload_receive_callback_t : public next_server_command_t
-{
-    int (*callback) ( void * data, const next_address_t * from, const uint8_t * payload_data, int payload_bytes );
-    void * callback_data;
 };
 
 // ---------------------------------------------------------------
@@ -11123,6 +11102,7 @@ struct next_server_internal_t
 {
     NEXT_DECLARE_SENTINEL(0)
 
+    next_server_callbacks_t callbacks;
     void * context;
     int state;
     uint64_t customer_id;
@@ -11217,17 +11197,6 @@ struct next_server_internal_t
     uint64_t num_flushed_match_data;
 
     NEXT_DECLARE_SENTINEL(11)
-
-	void (*packet_receive_callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end );
-	void * packet_receive_callback_data;
-
-	int (*send_packet_to_address_callback)( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
-	void * send_packet_to_address_callback_data;
-
-	int (*payload_receive_callback)( void * data, const next_address_t * client_address, const uint8_t * payload_data, int payload_bytes );
-	void * payload_receive_callback_data;
-
-    NEXT_DECLARE_SENTINEL(12)
 };
 
 void next_server_internal_initialize_sentinels( next_server_internal_t * server )
@@ -11246,7 +11215,6 @@ void next_server_internal_initialize_sentinels( next_server_internal_t * server 
     NEXT_INITIALIZE_SENTINEL( server, 9 )
     NEXT_INITIALIZE_SENTINEL( server, 10 )
     NEXT_INITIALIZE_SENTINEL( server, 11 )
-    NEXT_INITIALIZE_SENTINEL( server, 12 )
 }
 
 void next_server_internal_verify_sentinels( next_server_internal_t * server )
@@ -11265,7 +11233,6 @@ void next_server_internal_verify_sentinels( next_server_internal_t * server )
     NEXT_VERIFY_SENTINEL( server, 9 )
     NEXT_VERIFY_SENTINEL( server, 10 )
     NEXT_VERIFY_SENTINEL( server, 11 )
-    NEXT_VERIFY_SENTINEL( server, 12 )
     if ( server->session_manager )
         next_session_manager_verify_sentinels( server->session_manager );
     if ( server->pending_session_manager )
@@ -11283,6 +11250,7 @@ bool next_autodetect_google( char * output )
     char buffer[1024*10];
 
     // are we running in google cloud?
+    
 #if NEXT_PLATFORM == NEXT_PLATFORM_LINUX || NEXT_PLATFORM == NEXT_PLATFORM_MAC
 
     file = popen( "/bin/ls /usr/bin | grep google_ 2>/dev/null", "r" );
@@ -12032,7 +12000,7 @@ void next_server_internal_destroy( next_server_internal_t * server );
 
 static next_platform_thread_return_t NEXT_PLATFORM_THREAD_FUNC next_server_internal_thread_function( void * context );
 
-next_server_internal_t * next_server_internal_create( void * context, const char * server_address_string, const char * bind_address_string, const char * datacenter_string )
+next_server_internal_t * next_server_internal_create( void * context, const char * server_address_string, const char * bind_address_string, const char * datacenter_string, next_server_callbacks_t * callbacks )
 {
 #if !NEXT_DEVELOPMENT
     next_printf( NEXT_LOG_LEVEL_INFO, "server sdk version is %s", NEXT_VERSION_FULL );
@@ -12085,6 +12053,7 @@ next_server_internal_t * next_server_internal_create( void * context, const char
 
     next_server_internal_verify_sentinels( server );
 
+    server->callbacks = *callbacks;
     server->context = context;
     server->customer_id = next_global_config.server_customer_id;
     memcpy( server->customer_private_key, next_global_config.customer_private_key, NEXT_CRYPTO_SIGN_SECRETKEYBYTES );
@@ -12312,10 +12281,10 @@ void next_server_internal_send_packet_to_address( next_server_internal_t * serve
     next_assert( packet_data );
     next_assert( packet_bytes > 0 );
 
-    if ( server->send_packet_to_address_callback )
+    if ( server->callbacks.send_packet_to_address_callback )
     {
-    	void * callback_data = server->send_packet_to_address_callback_data;
-    	if ( server->send_packet_to_address_callback( callback_data, address, packet_data, packet_bytes ) != 0 )
+    	void * callback_data = server->callbacks.send_packet_to_address_callback_data;
+    	if ( server->callbacks.send_packet_to_address_callback( callback_data, address, packet_data, packet_bytes ) != 0 )
     		return;
     }
 
@@ -13006,10 +12975,10 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
     	const int payload_bytes = end - begin;
     	const uint8_t * payload_data = packet_data + begin;
 
-    	if ( server->payload_receive_callback )
+    	if ( server->callbacks.payload_receive_callback )
     	{
-    		void * callback_data = server->payload_receive_callback_data;
-    		if ( server->payload_receive_callback( callback_data, from, payload_data, payload_bytes ) )
+    		void * callback_data = server->callbacks.payload_receive_callback_data;
+    		if ( server->callbacks.payload_receive_callback( callback_data, from, payload_data, payload_bytes ) )
 	    		return;
     	}
 
@@ -13668,10 +13637,10 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
         const int payload_bytes = end - begin;
         const uint8_t * payload_data = packet_data + begin;
 
-    	if ( server->payload_receive_callback )
+    	if ( server->callbacks.payload_receive_callback )
     	{
-    		void * callback_data = server->payload_receive_callback_data;
-    		if ( server->payload_receive_callback( callback_data, from, payload_data, payload_bytes ) )
+    		void * callback_data = server->callbacks.payload_receive_callback_data;
+    		if ( server->callbacks.payload_receive_callback( callback_data, from, payload_data, payload_bytes ) )
 	    		return;
     	}
 
@@ -13909,10 +13878,10 @@ void next_server_internal_process_passthrough_packet( next_server_internal_t * s
 
     if ( packet_bytes <= NEXT_MTU )
     {
-    	if ( server->payload_receive_callback )
+    	if ( server->callbacks.payload_receive_callback )
     	{
-    		void * callback_data = server->payload_receive_callback_data;
-    		if ( server->payload_receive_callback( callback_data, from, packet_data, packet_bytes ) )
+    		void * callback_data = server->callbacks.payload_receive_callback_data;
+    		if ( server->callbacks.payload_receive_callback( callback_data, from, packet_data, packet_bytes ) )
 	    		return;
     	}
 
@@ -13950,11 +13919,11 @@ void next_server_internal_block_and_receive_packet( next_server_internal_t * ser
     int begin = 0;
     int end = packet_bytes;
 
-    if ( server->packet_receive_callback )
+    if ( server->callbacks.packet_receive_callback )
     {
-    	void * callback_data = server->packet_receive_callback_data;
+    	void * callback_data = server->callbacks.packet_receive_callback_data;
 
-	    server->packet_receive_callback( callback_data, &from, packet_data, &begin, &end );
+	    server->callbacks.packet_receive_callback( callback_data, &from, packet_data, &begin, &end );
 
 	    next_assert( begin >= 0 );
 	    next_assert( end <= NEXT_MAX_PACKET_BYTES );
@@ -14264,30 +14233,6 @@ void next_server_internal_pump_commands( next_server_internal_t * server )
             case NEXT_SERVER_COMMAND_FLUSH:
             {
                 next_server_internal_flush( server );
-            }
-            break;
-
-            case NEXT_SERVER_COMMAND_SET_PACKET_RECEIVE_CALLBACK:
-            {
-                next_server_command_set_packet_receive_callback_t * cmd = (next_server_command_set_packet_receive_callback_t*) command;
-            	server->packet_receive_callback = cmd->callback;
-            	server->packet_receive_callback_data = cmd->callback_data;
-            }
-            break;
-
-            case NEXT_SERVER_COMMAND_SET_SEND_PACKET_TO_ADDRESS_CALLBACK:
-            {
-                next_server_command_set_send_packet_to_address_callback_t * cmd = (next_server_command_set_send_packet_to_address_callback_t*) command;
-            	server->send_packet_to_address_callback = cmd->callback;
-            	server->send_packet_to_address_callback_data = cmd->callback_data;
-            }
-            break;
-
-            case NEXT_SERVER_COMMAND_SET_PAYLOAD_RECEIVE_CALLBACK:
-            {
-                next_server_command_set_payload_receive_callback_t * cmd = (next_server_command_set_payload_receive_callback_t*) command;
-            	server->payload_receive_callback = cmd->callback;
-            	server->payload_receive_callback_data = cmd->callback_data;
             }
             break;
 
@@ -15185,6 +15130,7 @@ struct next_server_t
     NEXT_DECLARE_SENTINEL(0)
 
     void * context;
+    next_server_callbacks_t callbacks;
     next_server_internal_t * internal;
     next_platform_thread_t * thread;
     next_proxy_session_manager_t * pending_session_manager;
@@ -15203,8 +15149,6 @@ struct next_server_t
     NEXT_DECLARE_SENTINEL(2)
 
     void (*packet_received_callback)( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes );
-	int (*send_packet_to_address_callback)( void * data, const next_address_t * address, const uint8_t * packet_data, int packet_bytes );
-	void * send_packet_to_address_callback_data;
 
     NEXT_DECLARE_SENTINEL(3)
 };
@@ -15235,7 +15179,7 @@ void next_server_verify_sentinels( next_server_t * server )
 
 void next_server_destroy( next_server_t * server );
 
-next_server_t * next_server_create( void * context, const char * server_address, const char * bind_address, const char * datacenter, void (*packet_received_callback)( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes ) )
+next_server_t * next_server_create( void * context, const char * server_address, const char * bind_address, const char * datacenter, void (*packet_received_callback)( next_server_t * server, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes ), next_server_callbacks_t * callbacks )
 {
     next_assert( server_address );
     next_assert( bind_address );
@@ -15250,8 +15194,8 @@ next_server_t * next_server_create( void * context, const char * server_address,
     next_server_initialize_sentinels( server );
 
     server->context = context;
-
-    server->internal = next_server_internal_create( context, server_address, bind_address, datacenter );
+    server->callbacks = *callbacks;
+    server->internal = next_server_internal_create( context, server_address, bind_address, datacenter, callbacks );
     if ( !server->internal )
     {
         next_printf( NEXT_LOG_LEVEL_ERROR, "server could not create internal server" );
@@ -15592,10 +15536,10 @@ void next_server_send_packet_to_address( next_server_t * server, const next_addr
     next_assert( packet_data );
     next_assert( packet_bytes > 0 );
 
-    if ( server->send_packet_to_address_callback )
+    if ( server->callbacks.send_packet_to_address_callback )
     {
-    	void * callback_data = server->send_packet_to_address_callback_data;
-    	if ( server->send_packet_to_address_callback( callback_data, address, packet_data, packet_bytes ) != 0 )
+    	void * callback_data = server->callbacks.send_packet_to_address_callback_data;
+    	if ( server->callbacks.send_packet_to_address_callback( callback_data, address, packet_data, packet_bytes ) != 0 )
     		return;
     }
 
@@ -15983,72 +15927,6 @@ void next_server_flush( struct next_server_t * server )
     else
     {
 	    next_printf( NEXT_LOG_LEVEL_INFO, "server flush finished" );	
-    }
-}
-
-void next_server_set_packet_receive_callback( struct next_server_t * server, void (*callback) ( void * data, next_address_t * from, uint8_t * packet_data, int * begin, int * end ), void * callback_data )
-{
-	next_assert( server );
-
-    next_server_command_set_packet_receive_callback_t * command = (next_server_command_set_packet_receive_callback_t*) next_malloc( server->context, sizeof( next_server_command_set_packet_receive_callback_t ) );
-    if ( !command )
-    {
-        next_printf( NEXT_LOG_LEVEL_ERROR, "server set packet receive callback failed. could not create command" );
-        return;
-    }
-
-    command->type = NEXT_SERVER_COMMAND_SET_PACKET_RECEIVE_CALLBACK;
-    command->callback = callback;
-    command->callback_data = callback_data;
-
-    {    
-        next_platform_mutex_guard( &server->internal->command_mutex );
-        next_queue_push( server->internal->command_queue, command );
-    }
-}
-
-void next_server_set_send_packet_to_address_callback( struct next_server_t * server, int (*callback) ( void * data, const next_address_t * from, const uint8_t * packet_data, int packet_bytes ), void * callback_data )
-{
-	next_assert( server );
-
-	server->send_packet_to_address_callback = callback;
-	server->send_packet_to_address_callback_data = callback_data;
-
-    next_server_command_set_send_packet_to_address_callback_t * command = (next_server_command_set_send_packet_to_address_callback_t*) next_malloc( server->context, sizeof( next_server_command_set_send_packet_to_address_callback_t ) );
-    if ( !command )
-    {
-        next_printf( NEXT_LOG_LEVEL_ERROR, "server set send packet to address callback failed. could not create command" );
-        return;
-    }
-
-    command->type = NEXT_SERVER_COMMAND_SET_SEND_PACKET_TO_ADDRESS_CALLBACK;
-    command->callback = callback;
-    command->callback_data = callback_data;
-
-    {    
-        next_platform_mutex_guard( &server->internal->command_mutex );
-        next_queue_push( server->internal->command_queue, command );
-    }
-}
-
-void next_server_set_payload_receive_callback( struct next_server_t * server, int (*callback) ( void * data, const next_address_t * from, const uint8_t * payload_data, int payload_bytes ), void * callback_data )
-{
-	next_assert( server );
-
-    next_server_command_set_payload_receive_callback_t * command = (next_server_command_set_payload_receive_callback_t*) next_malloc( server->context, sizeof( next_server_command_set_payload_receive_callback_t ) );
-    if ( !command )
-    {
-        next_printf( NEXT_LOG_LEVEL_ERROR, "server set payload receive callback failed. could not create command" );
-        return;
-    }
-
-    command->type = NEXT_SERVER_COMMAND_SET_PAYLOAD_RECEIVE_CALLBACK;
-    command->callback = callback;
-    command->callback_data = callback_data;
-
-    {    
-        next_platform_mutex_guard( &server->internal->command_mutex );
-        next_queue_push( server->internal->command_queue, command );
     }
 }
 
@@ -17392,7 +17270,7 @@ static void test_server_packet_received_callback( next_server_t * server, void *
 
 void test_server_ipv4()
 {
-    next_server_t * server = next_server_create( NULL, "127.0.0.1:0", "0.0.0.0:0", "local", test_server_packet_received_callback );
+    next_server_t * server = next_server_create( NULL, "127.0.0.1:0", "0.0.0.0:0", "local", test_server_packet_received_callback, NULL );
     next_check( server );
     next_check( next_server_port( server ) != 0 );
     next_address_t address;
@@ -17424,7 +17302,7 @@ void test_client_ipv6()
 
 void test_server_ipv6()
 {
-    next_server_t * server = next_server_create( NULL, "[::1]:0", "[::0]:0", "local", test_server_packet_received_callback );
+    next_server_t * server = next_server_create( NULL, "[::1]:0", "[::0]:0", "local", test_server_packet_received_callback, NULL );
     next_check( server );
     next_check( next_server_port(server) != 0 );
     next_address_t address;
@@ -20994,7 +20872,7 @@ void test_passthrough_packets_client_packet_received_callback( next_client_t * c
 
 void test_passthrough_packets()
 {
-    next_server_t * server = next_server_create( NULL, "127.0.0.1", "0.0.0.0:12345", "local", test_passthrough_packets_server_packet_received_callback );
+    next_server_t * server = next_server_create( NULL, "127.0.0.1", "0.0.0.0:12345", "local", test_passthrough_packets_server_packet_received_callback, NULL );
 
     next_check( server );
 
