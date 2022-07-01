@@ -1279,8 +1279,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 				proxy_platform_socket_send_packet( thread_data->slot_thread_data[slot]->socket, &config.server_address, packet_data + 1, packet_bytes - 1 );
 
-				// todo: when the upgrade below is turned on -- packets are lost. what is going on?
-
 				// send dummy passthrough packet to the next thread so it sees the new client and upgrades it
 
 	            packet_data[0] = NEXT_PASSTHROUGH_PACKET;
@@ -1328,11 +1326,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
             
 			int slot = session_table_get( thread_data->session_table, &from );
 			if ( slot == -1 )
-			{
-				// todo
-				printf( "no slot found\n" );
 				continue;
-			}
 
             packet_data = buffer;
             packet_bytes += prefix;
@@ -1416,8 +1410,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 		if ( packet_bytes == 0 )
 			continue;
 
-		// todo
-		// printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
+		debug_printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
 
 		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
 	}

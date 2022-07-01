@@ -50,11 +50,7 @@ void client_packet_received( next_client_t * client, void * context, const next_
     (void) client; (void) context; (void) packet_data; (void) packet_bytes; (void) from;
 
 	if ( packet_bytes < 8 )
-	{
-		// todo
-		printf( "packet too small: %d\n", packet_bytes );
 		return;
-	}
 
 	const uint8_t * p = packet_data;
 
