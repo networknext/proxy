@@ -77,6 +77,7 @@ int main()
 
     next_config_t config;
     next_default_config( &config );
+    config.force_passthrough_direct = true;
     strncpy_s( config.customer_public_key, customer_public_key, sizeof(config.customer_public_key) - 1 );
 
     if ( next_init( NULL, &config ) != NEXT_OK )

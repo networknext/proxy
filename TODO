@@ -6,11 +6,13 @@ DONE
 
 	Implement a config option to force passthrough direct.
 
-TODO
-
 	Implement passthrough direct client -> server.
 
 	Implement passthrough direct server -> client.
+
+	Verified that force passthrough direct is working :)
+
+TODO
 
 	-------------
 
