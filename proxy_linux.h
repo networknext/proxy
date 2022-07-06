@@ -40,7 +40,7 @@ typedef int proxy_platform_socket_handle_t;
 
 struct proxy_platform_socket_t
 {
-    int type;
+    uint32_t flags;
     proxy_platform_socket_handle_t handle;
 };
 

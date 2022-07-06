@@ -177,7 +177,7 @@ proxy_platform_socket_t * proxy_platform_socket_create( proxy_address_t * addres
 
     // create socket
 
-    socket->type = socket_type;
+    socket->flags = socket_flags;
 
     socket->handle = ::socket( ( address->type == PROXY_ADDRESS_IPV6 ) ? AF_INET6 : AF_INET, SOCK_DGRAM, IPPROTO_UDP );
 
@@ -462,7 +462,7 @@ int proxy_platform_socket_receive_packet( proxy_platform_socket_t * socket, prox
     sockaddr_storage sockaddr_from;
     socklen_t from_length = sizeof( sockaddr_from );
 
-    int result = int( recvfrom( socket->handle, (char*) packet_data, max_packet_size, socket->type == PROXY_PLATFORM_SOCKET_NON_BLOCKING ? MSG_DONTWAIT : 0, (sockaddr*) &sockaddr_from, &from_length ) );
+    int result = int( recvfrom( socket->handle, (char*) packet_data, max_packet_size, ( socket->flags & PROXY_PLATFORM_SOCKET_NON_BLOCKING ) ? MSG_DONTWAIT : 0, (sockaddr*) &sockaddr_from, &from_length ) );
 
     if ( result <= 0 )
     {
