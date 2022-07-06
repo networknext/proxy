@@ -97,7 +97,7 @@ int main()
 
     next_client_open_session( client, server_address );
 
-    uint8_t packet_data[100];
+    uint8_t packet_data[1200];
     memset( packet_data, 0, sizeof( packet_data ) );
 
     uint64_t sequence = 0;
