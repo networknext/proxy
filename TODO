@@ -1,56 +1,14 @@
 DONE
 
-TODO
-
-	--------------
-
 	We only *really* to adjust chonkle on outgoing packets from server -> relay, because we can just disable the advanced packet filter on client and server for incoming packets.
 
 	Where are these sent from, and what is the best place to make this change?
 
 	It's the "send_packet_to_address" callback.
 
-	--------------
+	Done. Proxy is ready for final load testing!
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	---------------
-
-	Verify that network next acceleration works through the proxy in dev.
+TODO
 
 	--------------
 
@@ -65,7 +23,5 @@ TODO
 	Setup a client, server and proxy in GCore (10G).
 
 	Load test in GCore.
-
-	Work on proxy is done :)
 
 	--------------
