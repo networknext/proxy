@@ -198,7 +198,7 @@ bool proxy_init()
 	// env var overrides
 
 	proxy_read_int_env( "NUM_THREADS", &config.num_threads );
-	proxy_read_int_env( "NUM_SLOT_PER_THREAD", &config.num_slots_per_thread );
+	proxy_read_int_env( "NUM_SLOTS_PER_THREAD", &config.num_slots_per_thread );
 
 	proxy_read_address_env( "PROXY_ADDRESS", &config.proxy_address );
 	proxy_read_address_env( "SERVER_ADDRESS", &config.server_address );
@@ -1757,9 +1757,15 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC next_thread_fun
 
 int main( int argc, char * argv[] )
 {
-    const bool server_mode = ( argc == 2 ) && strcmp( argv[1], "server" ) == 0;
+    bool server_mode = ( argc == 2 ) && strcmp( argv[1], "server" ) == 0;
     
-    const bool test_mode = (argc == 2 ) && strcmp( argv[1], "test" ) == 0;
+    bool test_mode = (argc == 2 ) && strcmp( argv[1], "test" ) == 0;
+
+    const char * mode_env = proxy_platform_getenv( "MODE" );
+    if ( mode_env && strcmp( mode_env, "server" ) == 0 )
+    {
+    	server_mode = true;
+    }
 
     if ( server_mode )
     {
