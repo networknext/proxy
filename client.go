@@ -14,18 +14,14 @@ import (
 	"encoding/binary"
 )
 
-// local testing
-const ServerAddress = "127.0.0.1:50000"
+const ServerAddress = "10.128.0.9:40000"
 
-// google cloud
-//const ServerAddress = "10.128.0.2:40000"
-
-const NumClients = 2 // 2000
+const NumClients = 2000
 const PacketsPerSecond = 100
-const PacketBytes = 100 // 1200
+const PacketBytes = 1200
 const BaseClientPort = 55000
-const SocketReadBuffer = 1000000 // 10000000
-const SocketWriteBuffer = 1000000 // 10000000
+const SocketReadBuffer = 10000000
+const SocketWriteBuffer = 10000000
 
 func ParseAddress(input string) *net.UDPAddr {
 	address := &net.UDPAddr{}

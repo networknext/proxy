@@ -8,7 +8,20 @@ DONE
 
 	Done. Proxy is ready for final load testing!
 
+	Improve configuration via env vars, right now it is a bit too hard coded.
+
+	At minimum by env var:
+
+		Proxy address
+		Server address
+		Number of threads
+		Number of slots per-thread
+
 TODO
+
+	--------------
+
+	Setup the proxy so it runs as a service
 
 	--------------
 
@@ -18,10 +31,6 @@ TODO
 
 	--------------
 
-	Setup a relay in GCore ashburn datacenter (10G).
-
-	Setup a client, server and proxy in GCore (10G).
-
-	Load test in GCore.
+	Verify that we can get an accelerated session going through the proxy.
 
 	--------------

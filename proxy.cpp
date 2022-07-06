@@ -92,6 +92,36 @@ extern void proxy_platform_term();
 
 extern int proxy_platform_num_cores();
 
+extern const char * proxy_platform_getenv( const char * );
+
+// ---------------------------------------------------------------------
+
+void proxy_read_int_env( const char * env, int * value )
+{
+	assert( env );
+	assert( value );
+	const char * env_string = proxy_platform_getenv( env );
+	if ( env_string )
+	{
+		*value = atoi( env_string );
+	}
+}
+
+void proxy_read_address_env( const char * env, proxy_address_t * address )
+{
+	assert( env );
+	assert( address );
+	const char * env_string = proxy_platform_getenv( env );
+	if ( env_string )
+	{
+		proxy_address_t env_address;
+		if ( proxy_address_parse( &env_address, env_string ) )
+		{
+			*address = env_address;
+		}
+	}
+}
+
 struct proxy_config_t
 {
 	int num_threads;
@@ -121,11 +151,11 @@ bool proxy_init()
 	if ( !proxy_platform_init() )
 		return false;
 
-	config.num_threads = 0;
-
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
+	config.num_threads = 16;
 	config.num_slots_per_thread = 1000;
 #else
+	config.num_threads = 2;
 	config.num_slots_per_thread = 10;
 #endif
 
@@ -165,15 +195,18 @@ bool proxy_init()
 	config.socket_receive_buffer_size = 1000000;
 #endif
 
-	if ( config.num_threads <= 0 )
-	{
-		config.num_threads = proxy_platform_num_cores();
+	// env var overrides
 
-        if ( config.num_threads > 16 )
-        {
-            config.num_threads = 16;
-        }
-	}
+	proxy_read_int_env( "NUM_THREADS", &config.num_threads );
+	proxy_read_int_env( "NUM_SLOT_PER_THREAD", &config.num_slots_per_thread );
+
+	proxy_read_address_env( "PROXY_ADDRESS", &config.proxy_address );
+	proxy_read_address_env( "SERVER_ADDRESS", &config.server_address );
+	proxy_read_address_env( "NEXT_ADDRESS", &config.next_address );
+
+	proxy_read_address_env( "PROXY_BIND_ADDRESS", &config.proxy_bind_address );
+	proxy_read_address_env( "SERVER_BIND_ADDRESS", &config.server_bind_address );
+	proxy_read_address_env( "NEXT_BIND_ADDRESS", &config.next_bind_address );
 
     return true;
 }
@@ -1288,9 +1321,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 						thread_data->slot_thread_data[slot]->allocated = true;
 						thread_data->slot_thread_data[slot]->next = false;
 						thread_data->slot_thread_data[slot]->client_address = from;
-
-						// todo: temporary
-						thread_data->slot_thread_data[slot]->next = true;
 
 						proxy_platform_mutex_release( &thread_data->slot_thread_data[slot]->mutex );
 
