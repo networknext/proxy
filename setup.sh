@@ -14,8 +14,6 @@ cd ..
 wget https://github.com/premake/premake-core/releases/download/v5.0.0-beta1/premake-5.0.0-beta1-linux.tar.gz
 tar -zxf premake-5.0.0-beta1-linux.tar.gz
 sudo mv premake5 /usr/local/bin
-git clone https://github.com/networknext/proxy.git
-cd proxy
 premake5 gmake
 make -j32
 ./bin/proxy test
