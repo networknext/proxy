@@ -175,6 +175,7 @@ struct next_config_t
     NEXT_BOOL disable_network_next;
     NEXT_BOOL disable_autodetect;
     NEXT_BOOL force_passthrough_direct;
+    NEXT_BOOL high_priority_threads;
 };
 
 NEXT_EXPORT_FUNC void next_default_config( struct next_config_t * config );

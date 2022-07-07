@@ -4131,6 +4131,7 @@ struct next_config_internal_t
     bool disable_network_next;
     bool disable_autodetect;
     bool force_passthrough_direct;
+    bool high_priority_threads;
 };
 
 static next_config_internal_t next_global_config;
@@ -4143,6 +4144,7 @@ void next_default_config( next_config_t * config )
     config->server_backend_hostname[sizeof(config->server_backend_hostname)-1] = '\0';
     config->socket_send_buffer_size = NEXT_DEFAULT_SOCKET_SEND_BUFFER_SIZE;
     config->socket_receive_buffer_size = NEXT_DEFAULT_SOCKET_RECEIVE_BUFFER_SIZE;
+    config->high_priority_threads = NEXT_TRUE;
 }
 
 int next_init( void * context, next_config_t * config_in )
@@ -4398,6 +4400,13 @@ int next_init( void * context, next_config_t * config_in )
                 next_printf( NEXT_LOG_LEVEL_ERROR, "router public key is invalid: \"%s\"", router_public_key_env );
             }
         }
+    }
+
+    const char * high_priority_threads_override = next_platform_getenv( "NEXT_HIGH_PRIORITY_THREADS" );
+    if ( high_priority_threads_override )
+    {
+        config.high_priority_threads = ( atoi( high_priority_threads_override ) > 0 ) ? true : false;
+        next_printf( NEXT_LOG_LEVEL_INFO, "high priority threads overridden to %d", config.high_priority_threads );
     }
 
     next_global_config = config;
@@ -8388,7 +8397,7 @@ next_client_t * next_client_create( void * context, const char * bind_address, v
         return NULL;
     }
 
-    if ( next_platform_thread_high_priority( client->thread ) )
+    if ( next_global_config.high_priority_threads && next_platform_thread_high_priority( client->thread ) )
     {
         next_printf( NEXT_LOG_LEVEL_INFO, "client increased thread priority" );
     }
@@ -15265,7 +15274,7 @@ next_server_t * next_server_create( void * context, const char * server_address,
         return NULL;
     }
 
-    if ( next_platform_thread_high_priority( server->thread ) )
+    if ( next_global_config.high_priority_threads && next_platform_thread_high_priority( server->thread ) )
     {
         next_printf( NEXT_LOG_LEVEL_INFO, "server increased thread priority" );
     }

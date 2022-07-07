@@ -151,11 +151,11 @@ bool proxy_init()
 	if ( !proxy_platform_init() )
 		return false;
 
-#if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.num_threads = 16;
+
+#if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 	config.num_slots_per_thread = 1000;
 #else
-	config.num_threads = 2;
 	config.num_slots_per_thread = 10;
 #endif
 
@@ -1039,6 +1039,7 @@ void run_tests()
     next_default_config( &next_config );
     strncpy( next_config.server_backend_hostname, next_backend_hostname, sizeof(next_config.server_backend_hostname) - 1 );
     strncpy( next_config.customer_private_key, next_customer_private_key, sizeof(next_config.customer_private_key) - 1 );
+    next_config.high_priority_threads = false;
 
     if ( next_init( NULL, &next_config ) != NEXT_OK )
     {
