@@ -1961,6 +1961,7 @@ int main( int argc, char * argv[] )
 	        exit(1);
 	    }
 
+	    /*
 	    if ( server_mode )
 	    {
 		    if ( !proxy_platform_thread_affinity( thread_data[i]->thread, i ) )
@@ -1971,6 +1972,7 @@ int main( int argc, char * argv[] )
 
 		    proxy_platform_thread_high_priority( thread_data[i]->thread );
 		}
+		*/
 	}
 
 	proxy_platform_thread_t * next_thread = NULL;
