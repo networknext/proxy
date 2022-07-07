@@ -14,4 +14,4 @@ sudo systemctl daemon-reload
 
 sudo systemctl start proxy
 
-sudo systemctl install proxy
+sudo systemctl enable proxy

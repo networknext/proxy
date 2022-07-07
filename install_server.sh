@@ -14,4 +14,4 @@ sudo systemctl daemon-reload
 
 sudo systemctl start server
 
-sudo systemctl install server
+sudo systemctl enable server
