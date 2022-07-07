@@ -14,7 +14,7 @@ import (
 	"encoding/binary"
 )
 
-const ServerAddress = "10.128.0.9:40000"
+const ServerAddress = "10.128.0.10:40000"
 
 const NumClients = 1000
 const PacketsPerSecond = 100
