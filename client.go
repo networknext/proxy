@@ -179,21 +179,4 @@ func main() {
 		fmt.Printf("\nshutting down...\n")
 		return
 	}
-
-	// todo: shut down clean
-	/*
-	fmt.Printf("set context as done\n")
-
-	<-ctx.Done()
-
-	fmt.Printf("waiting for threads to join\n")
-
-	wg.Wait()
-
-	for i := range threadConnection {
-		threadConnection[i].Close()
-	}
-
-	fmt.Printf("done.\n")
-	*/
 }
