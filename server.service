@@ -7,3 +7,6 @@ EnvironmentFile=/app/server.env
 Restart=always
 RestartSec=3
 LimitNOFILE=10000000
+
+[Install]
+WantedBy=multi-user.target
