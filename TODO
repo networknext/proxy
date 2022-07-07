@@ -19,31 +19,15 @@ DONE
 
 	Setup the proxy so it runs as a service
 
-TODO
-
 	Get the proxy back up to 2000 clients @ 100pps, 1200 bytes per-packet.
 
 	Even direct to server, the client.go is losing packets... tune the kernel...
 
-	--------------
+	Got client -> server direct going at 3000 clients w. tuning.
 
-	Steps:
-
-		1. sudo apt install net-tools
-
-		2. sudo ifconfig ens4 txqueuelen 100000
-
-		3. sudo vi /etc/sysctl.conf 
-
-			net.core.netdev_max_backlog=300000
-			net.core.rmem_default=10485760
-			net.core.wmem_default=10485760
-			fs.file-max=65536
-
-		4. sudo sysctl -p
-
-		5. sudo iptables -I INPUT 1 -p udp --dport 40000 -j ACCEPT
-
+TODO
+	
+	Now get the proxy back at 2000 clients.
 
 
 
