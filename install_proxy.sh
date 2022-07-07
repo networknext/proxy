@@ -12,4 +12,6 @@ sudo cp proxy.service /etc/systemd/system/proxy.service
 
 sudo systemctl daemon-reload
 
-sudo systemctl start proxy.service
+sudo systemctl start proxy
+
+sudo systemctl install proxy
