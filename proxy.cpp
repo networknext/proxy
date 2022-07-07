@@ -1960,19 +1960,6 @@ int main( int argc, char * argv[] )
 	        printf( "error: failed to create thread\n" );
 	        exit(1);
 	    }
-
-	    /*
-	    if ( server_mode )
-	    {
-		    if ( !proxy_platform_thread_affinity( thread_data[i]->thread, i ) )
-		    {
-		    	printf( "error: failed to set thread affinity to core %d\n", i );
-		    	exit(1);
-		    }
-
-		    proxy_platform_thread_high_priority( thread_data[i]->thread );
-		}
-		*/
 	}
 
 	proxy_platform_thread_t * next_thread = NULL;
