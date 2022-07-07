@@ -10,9 +10,6 @@ sudo chmod +x /app/proxy
 
 sudo cp proxy.service /etc/systemd/system/proxy.service
 
-sudo sysctl -w net.core.rmem_max=1000000000
-sudo sysctl -w net.core.wmem_max=1000000000
-
 sudo systemctl daemon-reload
 
 sudo systemctl start proxy.service
