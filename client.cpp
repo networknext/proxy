@@ -28,7 +28,7 @@
 #include <inttypes.h>
 
 const char * bind_address = "0.0.0.0:0";
-const char * server_address = "127.0.0.1:40000";
+const char * server_address = "10.128.0.9:40000";	// google cloud
 const char * customer_public_key = "leN7D7+9vr24uT4f1Ba8PEEvIQA/UkGZLlT+sdeLRHKsVqaZq723Zw==";
 
 static volatile int quit = 0;
