@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo mkdir -p /app
-sudo cp -f ./bin/server /app/server
+sudo cp -f ./bin/proxy /app/server
 sudo cp -f server.env /app/server.env
 
 sudo systemctl stop server
