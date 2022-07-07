@@ -1996,6 +1996,8 @@ int main( int argc, char * argv[] )
 
 	// wait for CTRL-C
 
+    fflush( stdout );
+
 	while ( !quit )
 	{
 		proxy_sleep( 1.0 );
