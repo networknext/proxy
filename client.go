@@ -16,7 +16,7 @@ import (
 
 const ServerAddress = "10.128.0.10:40000"
 
-const NumClients = 3000
+const NumClients = 4000
 const PacketsPerSecond = 100
 const PacketBytes = 1200
 const BaseClientPort = 55000
