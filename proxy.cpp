@@ -74,8 +74,8 @@ const int server_port = 50000;
 #define NEXT_RELAY_PONG_PACKET                                         21
 #define NEXT_FORWARD_PACKET_TO_CLIENT                                 254
 
-//#define debug_printf printf
-#define debug_printf(...) ((void)0)
+#define debug_printf printf
+// #define debug_printf(...) ((void)0)
 
 static volatile int quit = 0;
 
