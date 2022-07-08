@@ -142,6 +142,7 @@ struct proxy_config_t
 	proxy_address_t proxy_address;
 	proxy_address_t server_address;
 	proxy_address_t next_address;
+	proxy_address_t next_local_address;
 };
 
 static proxy_config_t config;
@@ -207,6 +208,15 @@ bool proxy_init()
 	proxy_read_address_env( "PROXY_BIND_ADDRESS", &config.proxy_bind_address );
 	proxy_read_address_env( "SERVER_BIND_ADDRESS", &config.server_bind_address );
 	proxy_read_address_env( "NEXT_BIND_ADDRESS", &config.next_bind_address );
+
+	// process dependent vars
+
+	config.next_local_address.type = PROXY_ADDRESS_IPV4;
+	config.next_local_address.data.ipv4[0] = 127;
+	config.next_local_address.data.ipv4[1] = 0;
+	config.next_local_address.data.ipv4[2] = 0;
+	config.next_local_address.data.ipv4[3] = 1;
+	config.next_local_address.port = config.next_address.port;
 
     return true;
 }
@@ -1146,7 +1156,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 	            buffer[9] = uint8_t( thread_data->slot_number >> 8 );
 	            buffer[10] = uint8_t( thread_data->slot_number );
 
-				next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_address, buffer, packet_bytes + prefix );
+				next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_local_address, buffer, packet_bytes + prefix );
 			}
 		}
         else
@@ -1363,7 +1373,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	            packet_data[9] = uint8_t( slot >> 8 );
 	            packet_data[10] = uint8_t( slot );
 
-				next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_address, packet_data, prefix + 1 );
+				next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_local_address, packet_data, prefix + 1 );
 	  		}
 		}
 		else
@@ -1415,7 +1425,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
             // forward packet to next server
 
-			next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_address, packet_data, packet_bytes );
+			next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_local_address, packet_data, packet_bytes );
 		}
 	}
 
@@ -1932,7 +1942,13 @@ int main( int argc, char * argv[] )
 		callbacks.route_update_callback = next_route_update_callback;
 		callbacks.route_update_callback_data = next_thread_data;
 
-	    next_server = next_server_create( NULL, next_public_address, next_bind_address, next_datacenter, next_packet_received, &callbacks );
+		char public_address[1024];
+		char bind_address[1024];
+
+		proxy_address_to_string( &config.next_address, public_address );
+		proxy_address_to_string( &config.next_bind_address, bind_address );
+
+	    next_server = next_server_create( NULL, public_address, bind_address, next_datacenter, next_packet_received, &callbacks );
 	    
 	    if ( next_server == NULL )
 	    {
