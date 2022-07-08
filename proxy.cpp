@@ -1315,6 +1315,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 	  				if ( time_since_last_packet_receive >= config.slot_timeout_seconds )
 	  				{
 		  				printf( "proxy thread %d slot %d has new client %s\n", thread_data->thread_number, i, proxy_address_to_string( &from, string_buffer ) );
+		  				fflush( stdout );
 	  					
 	  					slot = i;
 

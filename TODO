@@ -31,6 +31,8 @@ DONE
 
 	We don't want this on the client, or on the proxy next threads.
 
+	Verified that server in proxy has connected with dev network next backend and successfully init'd.
+
 TODO
 
 	--------------
@@ -46,5 +48,11 @@ TODO
 	Load test that we can hit 2000 clients with the proxy actually upgrading each connected client.
 
 	This will require some load test client MIG where we can scale out n clients per-machine, and scale up.
+
+	--------------
+
+	If we can't hit the 2000 clients with next active, we'll need to split up into multiple network next threads.
+
+	This requires prefixing the network next packets with the session id, which is an extensive change. Try to avoid if possible.
 
 	--------------
