@@ -1349,6 +1349,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 				// send dummy passthrough packet to the next thread so it sees the new client and upgrades it
 
+				debug_printf( "sent dummy packet through to next thread\n" );
+
 	            packet_data[0] = NEXT_PASSTHROUGH_PACKET;
 	            packet_data[1] = from.data.ipv4[0];
 	            packet_data[2] = from.data.ipv4[1];
@@ -1529,6 +1531,7 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 	if ( packet_bytes <= 11 )
 	{
+		debug_printf( "packet too small (%d bytes)\n", packet_bytes );
 		*begin = 0;
 		*end = 0;
 		return;
@@ -1538,6 +1541,8 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 	if ( packet_data[0] == NEXT_FORWARD_PACKET_TO_CLIENT )
 	{
+		// todo
+		debug_printf( "next forward packet to client\n" );
 		next_address_t client_address;
 		client_address.type = NEXT_ADDRESS_IPV4;
 		client_address.data.ipv4[0] = packet_data[1];
@@ -1591,6 +1596,9 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 	if ( session_table_update( thread_data->session_table, (proxy_address_t*) from, socket_index ) )
 	{
 		// new session
+
+		// todo
+		debug_printf( "new session\n" );
 
 		if ( next_server_ready( thread_data->next_server ) )
 		{
