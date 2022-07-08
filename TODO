@@ -27,13 +27,11 @@ DONE
 
 	Now get the proxy back at 2000 clients. DONE!
 
-TODO
-
-	--------------
-	
 	Add config option to disable high priority threads
 
 	We don't want this on the client, or on the proxy next threads.
+
+TODO
 
 	--------------
 
