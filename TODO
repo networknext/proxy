@@ -39,6 +39,29 @@ TODO
 
 	Verify that we can get an accelerated session going through the proxy in dev.
 
+	Client doesn't seem to be getting an upgrade triggered in Google cloud... need to work out why
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	--------------
 
 	Verify that network next acceleration works through the proxy in prod w. google cloud (with advanced packet filter).
