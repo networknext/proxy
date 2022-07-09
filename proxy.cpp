@@ -1557,9 +1557,11 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 	// special case: forward packet from server to client
 
+	const int prefix = 11;
+
 	if ( packet_data[0] == NEXT_FORWARD_PACKET_TO_CLIENT )
 	{
-		next_assert( packet_bytes > 11 );
+		next_assert( packet_bytes > prefix );
 
 		next_address_t client_address;
 		client_address.type = NEXT_ADDRESS_IPV4;
@@ -1569,11 +1571,11 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 		client_address.data.ipv4[3] = packet_data[4];
 		client_address.port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
 
-		next_server_send_packet( thread_data->next_server, &client_address, packet_data + 11, packet_bytes - 11 );
+		next_server_send_packet( thread_data->next_server, &client_address, packet_data + prefix, packet_bytes - prefix );
 
 		// todo
 		char string_buffer[1024];
-		printf( "next forwarded %d byte packet to client %s\n", packet_bytes - 11, next_address_to_string( &client_address, string_buffer ) );
+		printf( "next forwarded %d byte packet to client %s\n", packet_bytes - prefix, next_address_to_string( &client_address, string_buffer ) );
 		fflush( stdout );
 
 		return;
@@ -1632,15 +1634,6 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 		}
 	}
 
-	// if it is a passthrough packet, stop here. these are just sent to the next server to upgrade sessions
-
-	if ( packet_type == NEXT_PASSTHROUGH_PACKET )
-	{
-		*begin = 0;
-		*end = 0;
-		return;
-	}
-
 	// swap the session table double buffer every n seconds
 
 	const double current_time = next_time();
@@ -1654,7 +1647,16 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 		thread_data->last_session_table_swap_time = current_time;
 	}
 
-	// adjust begin index forward
+	// if it is a passthrough packet, stop here. these are just sent to the next server to upgrade sessions
+
+	if ( packet_type == NEXT_PASSTHROUGH_PACKET )
+	{
+		*begin = 0;
+		*end = 0;
+		return;
+	}
+
+	// adjust begin index forward. the next server will process this packet
 
 	*begin += 11;
 }
