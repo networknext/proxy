@@ -142,7 +142,7 @@ int main()
 	        }
 	    }
 
-        next_sleep( 0.01 );
+        next_sleep( 1.0 );		//0.01 );
     }
 
     next_client_destroy( client );

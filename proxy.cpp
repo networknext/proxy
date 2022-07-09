@@ -75,7 +75,7 @@ const int server_port = 50000;
 #define NEXT_FORWARD_PACKET_TO_CLIENT                                 254
 
 #define debug_printf printf
-// #define debug_printf(...) ((void)0)
+//#define debug_printf(...) ((void)0)
 
 static volatile int quit = 0;
 
@@ -1119,6 +1119,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 		if ( packet_bytes == 0 )
 			continue;
 
+		uint8_t * packet_data = buffer + prefix;
+
 		proxy_platform_mutex_acquire( &thread_data->mutex );
 		bool allocated = thread_data->allocated;
 		bool next = thread_data->next;
@@ -1133,16 +1135,19 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 
 				debug_printf( "proxy thread %d forwarded %d byte packet to client for slot %d (%s)\n", thread_data->thread_number, packet_bytes + 1, thread_data->slot_number, proxy_address_to_string( &client_address, string_buffer ) );
 
-				uint8_t * packet_data = buffer + prefix - 1;
+				packet_data -= 1;
+				packet_bytes += 1;
 
 	            packet_data[0] = NEXT_PASSTHROUGH_PACKET;
 				uint64_t hash = hash_address( &client_address );
 				int index = hash % config.num_threads;
-				proxy_platform_socket_send_packet( thread_data->thread_sockets[index], &client_address, packet_data, packet_bytes + 1 );
+				proxy_platform_socket_send_packet( thread_data->thread_sockets[index], &client_address, packet_data, packet_bytes );
 			}
 			else
 			{
 				// forward packet to client through next server
+
+				printf( "NEXT_FORWARD_PACKET_TO_CLIENT\n" );
 
 	            buffer[0] = NEXT_FORWARD_PACKET_TO_CLIENT;
 	            buffer[1] = client_address.data.ipv4[0];
@@ -1156,7 +1161,10 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 	            buffer[9] = uint8_t( thread_data->slot_number >> 8 );
 	            buffer[10] = uint8_t( thread_data->slot_number );
 
-				next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_local_address, buffer, packet_bytes + prefix );
+	            packet_data = buffer;
+	            packet_bytes += prefix;
+
+				next_platform_socket_send_packet( thread_data->next_socket, (next_address_t*) &config.next_local_address, packet_data, packet_bytes );
 			}
 		}
         else
@@ -1551,8 +1559,8 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 	if ( packet_data[0] == NEXT_FORWARD_PACKET_TO_CLIENT )
 	{
-		// todo
-		debug_printf( "next forward packet to client\n" );
+		next_assert( packet_bytes > 11 );
+
 		next_address_t client_address;
 		client_address.type = NEXT_ADDRESS_IPV4;
 		client_address.data.ipv4[0] = packet_data[1];
@@ -1560,7 +1568,14 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 		client_address.data.ipv4[2] = packet_data[3];
 		client_address.data.ipv4[3] = packet_data[4];
 		client_address.port = ( uint16_t(packet_data[5]) << 8 ) | ( uint16_t(packet_data[6]) );
+
 		next_server_send_packet( thread_data->next_server, &client_address, packet_data + 11, packet_bytes - 11 );
+
+		// todo
+		char string_buffer[1024];
+		printf( "next forwarded %d byte packet to client %s\n", packet_bytes - 11, next_address_to_string( &client_address, string_buffer ) );
+		fflush( stdout );
+
 		return;
 	}
 
@@ -1606,9 +1621,6 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 	if ( session_table_update( thread_data->session_table, (proxy_address_t*) from, socket_index ) )
 	{
 		// new session
-
-		// todo
-		debug_printf( "new session\n" );
 
 		if ( next_server_ready( thread_data->next_server ) )
 		{
