@@ -33,7 +33,7 @@
 const char * next_bind_address = "0.0.0.0:60000";
 const char * next_public_address = "127.0.0.1:60000";
 const char * next_datacenter = "local";
-const char * next_backend_hostname = "dev5.spacecats.net";
+const char * next_backend_hostname = "prod5.spacecats.net";
 const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c9Dhwr4ZaTkEWyX2Li5Ph/UFrw8QS8hAD9SQZkuVP6x14tEcqxWppmrvbdn";
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX

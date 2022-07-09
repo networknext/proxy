@@ -33,16 +33,34 @@ DONE
 
 	Verified that server in proxy has connected with dev network next backend and successfully init'd.
 
-TODO
+	Client doesn't seem to be getting an upgrade triggered in Google cloud... need to work out why
 
-	--------------
+	It was thread starvation on the next thread.
+
+	Appears that the next thread needs high priority, or it can get starved with thousands of threads for the proxy forward.
+
+	Maybe using select on the slot threads would be a smarter approach, than having one thread per-slot socket.
+
+	No. Select on thousands of descriptors is the wrong way.
+
+	Instead, async io seems to be the way: https://developer.ibm.com/articles/l-async/
+
+	Another approach on Linux:
+
+	https://en.wikipedia.org/wiki/Io_uring
+
+
+TODO
 
 	Verify that we can get an accelerated session going through the proxy in dev.
 
-	Client doesn't seem to be getting an upgrade triggered in Google cloud... need to work out why
+	Right now it seems the blocker here is just getting a relay setup in google cloud.
 
+	--------------
 
+	Might be smarter to switch over to production, which should have google cloud relays setup.
 
+	--------------
 
 
 
