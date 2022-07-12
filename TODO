@@ -52,6 +52,8 @@ DONE
 
 TODO
 
+	--------------
+
 	Verify that we can get an accelerated session going through the proxy in dev.
 
 	Right now it seems the blocker here is just getting a relay setup in google cloud.

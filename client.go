@@ -152,8 +152,8 @@ func main() {
 		// print stats
 
 		go func() {
-			var totalSent, totalReceived, totalLost uint64
 			for range time.Tick(time.Second * 5) {
+				var totalSent, totalReceived, totalLost uint64
 				for i := 0; i < NumClients; i++ {
 					sent := atomic.LoadUint64(&threadPacketSent[i])
 					received := atomic.LoadUint64(&threadPacketReceived[i])
