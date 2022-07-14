@@ -14,14 +14,14 @@ import (
 	"encoding/binary"
 )
 
-const ServerAddress = "10.128.0.9:40000"
+const ServerAddress = "127.0.0.1:40000"; //"10.128.0.9:40000"
 
-const NumClients = 2000
+const NumClients = 2
 const PacketsPerSecond = 100
 const PacketBytes = 1200
 const BaseClientPort = 55000
-const SocketReadBuffer = 10000000
-const SocketWriteBuffer = 10000000
+const SocketReadBuffer = 1000000
+const SocketWriteBuffer = 1000000
 
 func ParseAddress(input string) *net.UDPAddr {
 	address := &net.UDPAddr{}
@@ -161,6 +161,12 @@ func main() {
 					totalSent += sent
 					totalReceived += received
 					totalLost += lost
+				}
+				if totalReceived > totalSent {
+					totalReceived = totalSent
+				}
+				if totalLost > totalSent {
+					totalLost = totalSent
 				}
 				fmt.Printf("sent %d, received %d, lost %d\n", totalSent, totalReceived, totalLost)
 			}
