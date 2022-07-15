@@ -1,56 +1,35 @@
 DONE
 
-	We only *really* to adjust chonkle on outgoing packets from server -> relay, because we can just disable the advanced packet filter on client and server for incoming packets.
-
-	Where are these sent from, and what is the best place to make this change?
-
-	It's the "send_packet_to_address" callback.
-
-	Done. Proxy is ready for final load testing!
-
-	Improve configuration via env vars, right now it is a bit too hard coded.
-
-	At minimum by env var:
-
-		Proxy address
-		Server address
-		Number of threads
-		Number of slots per-thread
-
-	Setup the proxy so it runs as a service
-
-	Get the proxy back up to 2000 clients @ 100pps, 1200 bytes per-packet.
-
-	Even direct to server, the client.go is losing packets... tune the kernel...
-
-	Got client -> server direct going at 3000 clients w. tuning.
-
-	Now get the proxy back at 2000 clients. DONE!
-
-	Add config option to disable high priority threads
-
-	We don't want this on the client, or on the proxy next threads.
-
-	Verified that server in proxy has connected with dev network next backend and successfully init'd.
-
-	Client doesn't seem to be getting an upgrade triggered in Google cloud... need to work out why
-
-	It was thread starvation on the next thread.
-
-	Appears that the next thread needs high priority, or it can get starved with thousands of threads for the proxy forward.
-
-	Maybe using select on the slot threads would be a smarter approach, than having one thread per-slot socket.
-
-	No. Select on thousands of descriptors is the wrong way.
-
-	Instead, async io seems to be the way: https://developer.ibm.com/articles/l-async/
-
-	Another approach on Linux:
-
-	https://en.wikipedia.org/wiki/Io_uring
-
-
 TODO
+
+	--------------
+
+	Extend client.cpp, proxy.cpp and client.go to read in environment variables for configuration.
+
+	--------------
+
+	Test locally with the reference backend and a relay, to entice sessions to go across next.
+
+	--------------
+
+	Extend client.cpp to print out packets sent, packets received, packets lost, latency, jitter and packet loss from network next client stats.
+
+	--------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	--------------
 
@@ -61,26 +40,6 @@ TODO
 	--------------
 
 	Might be smarter to switch over to production, which should have google cloud relays setup.
-
-	--------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	--------------
 

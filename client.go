@@ -16,9 +16,9 @@ import (
 
 const ServerAddress = "127.0.0.1:40000"; //"10.128.0.9:40000"
 
-const NumClients = 2
-const PacketsPerSecond = 100
-const PacketBytes = 1200
+const NumClients = 10
+const PacketsPerSecond = 1 // 100
+const PacketBytes = 100 // 1200
 const BaseClientPort = 55000
 const SocketReadBuffer = 1000000
 const SocketWriteBuffer = 1000000
@@ -96,7 +96,10 @@ func main() {
 					writePacketData := make([]byte, PacketBytes)
 					writeSequence := uint64(0)
 
-				    ticker := time.NewTicker(10 * time.Millisecond)
+					tickRate := time.Duration(1000000000 / PacketsPerSecond)
+
+					ticker := time.NewTicker(tickRate)
+
 				    for {
 				        select {
 				        case <-ticker.C:
