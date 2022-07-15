@@ -1748,6 +1748,13 @@ void next_route_update_callback( void * data, const next_address_t * client_addr
 	next_assert( slot_number >= 0 );
 	next_assert( slot_number < config.num_slots_per_thread );
 
+	// todo
+	if ( thread_number >= config.num_threads )
+	{
+		printf("thread number is %d\n", thread_number );
+		fflush( stdout );
+	}
+
 	next_assert( thread_number >= 0 );
 	next_assert( thread_number < config.num_threads );
 

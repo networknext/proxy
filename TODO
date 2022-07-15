@@ -2,11 +2,68 @@ DONE
 
 	Move the client, proxy and server to ports that don't conflict with the reference backend.
 
+	Test locally with the reference backend and a relay, to entice sessions to go across next.
+
+	14.343982: debug: server received route update ack from client for session e5daa59ca029b241
+	thread number is 1
+	assert failed: ( thread_number < config.num_threads ), function next_route_update_callback, file proxy.cpp, line 1759
+
+	^--- Bug when client goes over next
+
+	It seems that the client gets the route request through to the relay, but when the relay forwards the route request to the server, it is dropped with basic packet filter.
+
+	Has the reference relay been updated to support sdk5?
+
+	Yes. Since the sdk5 passes func tests, we know that the reference relay and the ref backend work with sdk5.
+
+	Therefore, the only thing that can be wrong, is some offset issue with next packets when they're forwarded to the internal next thread.
+
+	This also lines up with the bad thread number, since that is packed into the packet.
+
 TODO
 
-	--------------
+	Oh my, the next server needs to set its public address as the proxy address.
 
-	Test locally with the reference backend and a relay, to entice sessions to go across next.
+	What's happening is that relays are directly talking to the next backend sockets, without going through the proxy slots.
+
+	Do we want this?
+
+	One solution is to have the next server report its public address as the proxy address, that way all packets go through the proxy slots.
+
+	Another option is to have the next server have its own distinct address, and the relays talk to that.
+
+	Which is the best option?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	--------------
 
@@ -22,7 +79,7 @@ TODO
 
 	--------------
 
-	Extend client.cpp to print out packets sent, packets received, packets lost, latency, jitter and packet loss from network next client stats.
+	Extend client.cpp to print out latency, jitter and packet loss from network next client stats.
 
 	--------------
 

@@ -73,8 +73,7 @@ int main()
 
     memset( received_packets, 0xFF, sizeof(received_packets) );
     
-    // todo
- 	// next_quiet( true );
+    // next_quiet( true );
 
     next_config_t config;
     next_default_config( &config );
@@ -98,13 +97,13 @@ int main()
 
     next_client_open_session( client, server_address );
 
-    // todo: don't hardcode to 1200. PACKET_BYTES env
-    uint8_t packet_data[1200];
+    // todo: don't hardcode. PACKET_BYTES env
+    uint8_t packet_data[100];
     memset( packet_data, 0, sizeof( packet_data ) );
 
     uint64_t sequence = 0;
 
-    double last_print_time = next_time();
+    // double last_print_time = next_time();
 
     next_sleep( 1.0 );
 
@@ -134,6 +133,7 @@ int main()
 	        	}
 	        }
 
+	        /*
 	        double current_time = next_time();
 
 	        if ( current_time - last_print_time > 5.0 )
@@ -142,6 +142,7 @@ int main()
 
 	        	last_print_time = current_time;
 	        }
+	        */
 	    }
 
 	    // todo: packets per-second env
