@@ -159,7 +159,7 @@ bool proxy_init()
 	config.num_slots_per_thread = 1000;
 #else
 	config.num_threads = 1;
-	config.num_slots_per_thread = 1;
+	config.num_slots_per_thread = 10;
 #endif
 
 	config.max_packet_size = 1500;
