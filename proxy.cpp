@@ -33,8 +33,10 @@
 const char * next_bind_address = "0.0.0.0:60000";
 const char * next_public_address = "127.0.0.1:60000";
 const char * next_datacenter = "local";
-const char * next_backend_hostname = "prod5.spacecats.net";
+const char * next_backend_hostname = "127.0.0.1:40000";
 const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c9Dhwr4ZaTkEWyX2Li5Ph/UFrw8QS8hAD9SQZkuVP6x14tEcqxWppmrvbdn";
+
+// todo: doubling up on port numbers below is super dumb. drive this all from env vars
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
 const char * proxy_address = "10.128.0.7:40000";		// google cloud
@@ -42,10 +44,10 @@ const char * server_address = "10.128.0.3:40000";		// google cloud
 const int proxy_port = 40000;
 const int server_port = 40000;
 #else
-const char * proxy_address = "127.0.0.1:40000";			// local testing
-const char * server_address = "127.0.0.1:50000";		// local testing
-const int proxy_port = 40000;
-const int server_port = 50000;
+const char * proxy_address = "127.0.0.1:65000";			// local testing
+const char * server_address = "127.0.0.1:65001";		// local testing
+const int proxy_port = 65000;
+const int server_port = 65001;
 #endif
 
 // ---------------------------------------------------------------------
@@ -152,12 +154,12 @@ bool proxy_init()
 	if ( !proxy_platform_init() )
 		return false;
 
-	config.num_threads = 16;
-
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
+	config.num_threads = 16;
 	config.num_slots_per_thread = 1000;
 #else
-	config.num_slots_per_thread = 10;
+	config.num_threads = 1;
+	config.num_slots_per_thread = 1;
 #endif
 
 	config.max_packet_size = 1500;
@@ -181,8 +183,7 @@ bool proxy_init()
 	config.server_bind_address.type = PROXY_ADDRESS_IPV4;
 	config.server_bind_address.port = server_port;
 
-	memset( &config.next_bind_address, 0, sizeof(proxy_address_t) );
-	config.next_bind_address.type = PROXY_ADDRESS_IPV4;
+	proxy_address_parse( &config.next_bind_address, next_bind_address );
 
 	proxy_address_parse( &config.proxy_address, proxy_address );
 	proxy_address_parse( &config.server_address, server_address );
@@ -209,7 +210,7 @@ bool proxy_init()
 	proxy_read_address_env( "SERVER_BIND_ADDRESS", &config.server_bind_address );
 	proxy_read_address_env( "NEXT_BIND_ADDRESS", &config.next_bind_address );
 
-	// process dependent vars
+	// dependent vars
 
 	config.next_local_address.type = PROXY_ADDRESS_IPV4;
 	config.next_local_address.data.ipv4[0] = 127;
@@ -1963,7 +1964,7 @@ int main( int argc, char * argv[] )
 		proxy_address_to_string( &config.next_bind_address, bind_address );
 
 	    next_server = next_server_create( NULL, public_address, bind_address, next_datacenter, next_packet_received, &callbacks );
-	    
+
 	    if ( next_server == NULL )
 	    {
 	        printf( "error: failed to create next server\n" );
@@ -1976,7 +1977,7 @@ int main( int argc, char * argv[] )
 	    	next_server_update( next_server );
 	    	if ( next_server_ready( next_server ) )
 	    		break;
-	    	next_sleep( 0.01 );
+	    	next_sleep( 0.1 );
 	    }
 	}
 

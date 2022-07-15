@@ -1,14 +1,24 @@
 DONE
 
+	Move the client, proxy and server to ports that don't conflict with the reference backend.
+
 TODO
 
 	--------------
 
-	Extend client.cpp, proxy.cpp and client.go to read in environment variables for configuration.
+	Test locally with the reference backend and a relay, to entice sessions to go across next.
 
 	--------------
 
-	Test locally with the reference backend and a relay, to entice sessions to go across next.
+	Extend client.go to read in environment variables for configuration.
+
+	--------------
+
+	Extend client.cpp to read in environment variables for configuration.
+
+	--------------
+
+	Extend proxy.cpp to read in environment variables for configuration.
 
 	--------------
 

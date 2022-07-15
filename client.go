@@ -14,8 +14,9 @@ import (
 	"encoding/binary"
 )
 
-const ServerAddress = "127.0.0.1:40000"; //"10.128.0.9:40000"
+// todo: make these all env vars
 
+const ServerAddress = "127.0.0.1:65000"; //"10.128.0.9:40000"
 const NumClients = 10
 const PacketsPerSecond = 1 // 100
 const PacketBytes = 100 // 1200

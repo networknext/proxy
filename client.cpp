@@ -28,7 +28,7 @@
 #include <inttypes.h>
 
 const char * bind_address = "0.0.0.0:0";
-const char * server_address = "10.128.0.9:40000";	// google cloud
+const char * server_address = "127.0.0.1:65000"; // "10.128.0.9:40000";	// google cloud
 const char * customer_public_key = "leN7D7+9vr24uT4f1Ba8PEEvIQA/UkGZLlT+sdeLRHKsVqaZq723Zw==";
 
 static volatile int quit = 0;
@@ -43,7 +43,7 @@ void interrupt_handler( int signal )
 }
 
 static uint64_t sent, received, lost;
-static uint64_t received_packets[1024];
+static uint64_t received_packets[1024];		// todo: don't hardcode to 1024
 
 void client_packet_received( next_client_t * client, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
 {
@@ -98,6 +98,7 @@ int main()
 
     next_client_open_session( client, server_address );
 
+    // todo: don't hardcode to 1200. PACKET_BYTES env
     uint8_t packet_data[1200];
     memset( packet_data, 0, sizeof( packet_data ) );
 
@@ -122,6 +123,7 @@ int main()
 	        sequence++;
 	        sent++;
 
+	        // todo: don't hardcode to 100
 	        if ( sequence >= 100 )
 	        {
 	        	int index = ( sequence - 100 ) % 1024;
@@ -142,7 +144,8 @@ int main()
 	        }
 	    }
 
-        next_sleep( 1.0 );		//0.01 );
+	    // todo: packets per-second env
+        next_sleep( 1.0 );
     }
 
     next_client_destroy( client );
