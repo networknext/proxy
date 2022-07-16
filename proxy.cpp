@@ -1748,13 +1748,6 @@ void next_route_update_callback( void * data, const next_address_t * client_addr
 	next_assert( slot_number >= 0 );
 	next_assert( slot_number < config.num_slots_per_thread );
 
-	// todo
-	if ( thread_number >= config.num_threads )
-	{
-		printf("thread number is %d\n", thread_number );
-		fflush( stdout );
-	}
-
 	next_assert( thread_number >= 0 );
 	next_assert( thread_number < config.num_threads );
 
@@ -1967,7 +1960,7 @@ int main( int argc, char * argv[] )
 		char public_address[1024];
 		char bind_address[1024];
 
-		proxy_address_to_string( &config.next_address, public_address );
+		proxy_address_to_string( &config.proxy_address, public_address );
 		proxy_address_to_string( &config.next_bind_address, bind_address );
 
 	    next_server = next_server_create( NULL, public_address, bind_address, next_datacenter, next_packet_received, &callbacks );

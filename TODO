@@ -20,8 +20,6 @@ DONE
 
 	This also lines up with the bad thread number, since that is packed into the packet.
 
-TODO
-
 	Oh my, the next server needs to set its public address as the proxy address.
 
 	What's happening is that relays are directly talking to the next backend sockets, without going through the proxy slots.
@@ -34,8 +32,33 @@ TODO
 
 	Which is the best option?
 
+	There is really no choice. The network next server must communicate with the client through the proxy IP:port, otherwise the client NAT won't let server -> client packets through.
 
+	-----------------
 
+	Now the comms from the server to the backend are failing, because of advanced packet filter.
+
+	Two options now:
+
+		1. Packets from the server to an address are always forwarded through the proxy
+
+		2. Packets sent to the backend are sent from the internal address
+
+	For consistency, it makes sense to send everything through the proxy. Everything.
+
+	This means that we need to forward packets from the backend to the next socket, not just the other packets.
+	
+	Wow.
+
+	------------------
+
+TODO
+
+	It seems that the next thing to do is to stop testing with client/server/backend/relay etc.
+
+	And just got the proxy initializing with the reference backend.
+
+	Once this is done, then the forwarding of next packets through proxy is working.
 
 
 
