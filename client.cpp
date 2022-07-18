@@ -103,7 +103,7 @@ int main()
 
     uint64_t sequence = 0;
 
-    // double last_print_time = next_time();
+    double last_print_time = next_time();
 
     next_sleep( 1.0 );
 
@@ -133,7 +133,6 @@ int main()
 	        	}
 	        }
 
-	        /*
 	        double current_time = next_time();
 
 	        if ( current_time - last_print_time > 5.0 )
@@ -142,7 +141,6 @@ int main()
 
 	        	last_print_time = current_time;
 	        }
-	        */
 	    }
 
 	    // todo: packets per-second env

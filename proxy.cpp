@@ -1368,8 +1368,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
 
 				// send dummy passthrough packet to the next thread so it sees the new client and upgrades it
 
-				debug_printf( "sent dummy packet through to next thread\n" );
-
 	            packet_data[0] = NEXT_PASSTHROUGH_PACKET;
 	            packet_data[1] = from.data.ipv4[0];
 	            packet_data[2] = from.data.ipv4[1];
@@ -1403,10 +1401,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC proxy_thread_fu
             	case NEXT_DIRECT_PACKET:
             	case NEXT_DIRECT_PING_PACKET:
 				case NEXT_UPGRADE_RESPONSE_PACKET:
-				case NEXT_ROUTE_REQUEST_PACKET:
-				case NEXT_CLIENT_TO_SERVER_PACKET:
-				case NEXT_PING_PACKET:
-				case NEXT_CONTINUE_REQUEST_PACKET:
 				case NEXT_CLIENT_STATS_PACKET:
 				case NEXT_ROUTE_UPDATE_ACK_PACKET:
 				default:
@@ -1574,11 +1568,6 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 		next_server_send_packet( thread_data->next_server, &client_address, packet_data + prefix, packet_bytes - prefix );
 
-		// todo
-		char string_buffer[1024];
-		printf( "next forwarded %d byte packet to client %s\n", packet_bytes - prefix, next_address_to_string( &client_address, string_buffer ) );
-		fflush( stdout );
-
 		return;
 	}
 
@@ -1588,14 +1577,10 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 
 	switch ( packet_type )
 	{
-		case NEXT_PASSTHROUGH_PACKET:
-		case NEXT_DIRECT_PACKET:
-		case NEXT_DIRECT_PING_PACKET:
+    	case NEXT_PASSTHROUGH_PACKET:
+    	case NEXT_DIRECT_PACKET:
+    	case NEXT_DIRECT_PING_PACKET:
 		case NEXT_UPGRADE_RESPONSE_PACKET:
-		case NEXT_ROUTE_REQUEST_PACKET:
-		case NEXT_CLIENT_TO_SERVER_PACKET:
-		case NEXT_PING_PACKET:
-		case NEXT_CONTINUE_REQUEST_PACKET:
 		case NEXT_CLIENT_STATS_PACKET:
 		case NEXT_ROUTE_UPDATE_ACK_PACKET:
 			break;
@@ -1960,7 +1945,7 @@ int main( int argc, char * argv[] )
 		char public_address[1024];
 		char bind_address[1024];
 
-		proxy_address_to_string( &config.proxy_address, public_address );
+		proxy_address_to_string( &config.next_address, public_address );
 		proxy_address_to_string( &config.next_bind_address, bind_address );
 
 	    next_server = next_server_create( NULL, public_address, bind_address, next_datacenter, next_packet_received, &callbacks );

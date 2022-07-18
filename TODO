@@ -1,92 +1,10 @@
 DONE
 
-	Move the client, proxy and server to ports that don't conflict with the reference backend.
-
-	Test locally with the reference backend and a relay, to entice sessions to go across next.
-
-	14.343982: debug: server received route update ack from client for session e5daa59ca029b241
-	thread number is 1
-	assert failed: ( thread_number < config.num_threads ), function next_route_update_callback, file proxy.cpp, line 1759
-
-	^--- Bug when client goes over next
-
-	It seems that the client gets the route request through to the relay, but when the relay forwards the route request to the server, it is dropped with basic packet filter.
-
-	Has the reference relay been updated to support sdk5?
-
-	Yes. Since the sdk5 passes func tests, we know that the reference relay and the ref backend work with sdk5.
-
-	Therefore, the only thing that can be wrong, is some offset issue with next packets when they're forwarded to the internal next thread.
-
-	This also lines up with the bad thread number, since that is packed into the packet.
-
-	Oh my, the next server needs to set its public address as the proxy address.
-
-	What's happening is that relays are directly talking to the next backend sockets, without going through the proxy slots.
-
-	Do we want this?
-
-	One solution is to have the next server report its public address as the proxy address, that way all packets go through the proxy slots.
-
-	Another option is to have the next server have its own distinct address, and the relays talk to that.
-
-	Which is the best option?
-
-	There is really no choice. The network next server must communicate with the client through the proxy IP:port, otherwise the client NAT won't let server -> client packets through.
-
-	-----------------
-
-	Now the comms from the server to the backend are failing, because of advanced packet filter.
-
-	Two options now:
-
-		1. Packets from the server to an address are always forwarded through the proxy
-
-		2. Packets sent to the backend are sent from the internal address
-
-	For consistency, it makes sense to send everything through the proxy. Everything.
-
-	This means that we need to forward packets from the backend to the next socket, not just the other packets.
-	
-	Wow.
-
-	------------------
+	Verify that we can get next sessions session going through the proxy locally.
 
 TODO
 
-	It seems that the next thing to do is to stop testing with client/server/backend/relay etc.
-
-	And just got the proxy initializing with the reference backend.
-
-	Once this is done, then the forwarding of next packets through proxy is working.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	Clean up logs after all the changes made.
 
 	--------------
 
@@ -123,7 +41,6 @@ TODO
 
 	--------------
 
-	Verify that we can get an accelerated session going through the proxy in dev.
 
 	Right now it seems the blocker here is just getting a relay setup in google cloud.
 
