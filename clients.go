@@ -14,9 +14,9 @@ import (
 	"encoding/binary"
 )
 
-// todo: make these all env vars
+var serverAddress *net.UDPAddr
 
-const ServerAddress = "127.0.0.1:65000"; //"10.128.0.9:40000"
+// todo: make these all env vars
 const NumClients = 10
 const PacketsPerSecond = 1 // 100
 const PacketBytes = 100 // 1200
@@ -37,7 +37,39 @@ func ParseAddress(input string) *net.UDPAddr {
 	return address
 }
 
+func GetEnvString(name string, defaultValue string) string {
+	string, ok := os.LookupEnv(name)
+	if !ok {
+		return defaultValue
+	}
+	return string
+}
+
+func GetEnvInt(name string, defaultValue int) int {
+	string, ok := os.LookupEnv(name)
+	if !ok {
+		return defaultValue
+	}
+	value, err := strconv.ParseInt(string, 10, 64)
+	if err != nil {
+		return defaultValue
+	}
+	return int(value)
+}
+
+func GetEnvAddress(name string, defaultValue string) *net.UDPAddr {
+	string, ok := os.LookupEnv(name)
+	if !ok {
+		return ParseAddress(defaultValue)
+	}
+	return ParseAddress(string)
+}
+
 func main() {
+
+	// configure
+
+	serverAddress := GetEnvAddress("SERVER_ADDRESS", "127.0.0.1:65000")
 
 	// run everything in parallel in a goroutine from main thread
 
@@ -48,8 +80,6 @@ func main() {
 	threadConnection := make([]*net.UDPConn, NumClients)
 
 	go func() {
-
-		serverIP := ParseAddress(ServerAddress)
 
 		threadPacketSent := make([]uint64, NumClients)
 		threadPacketReceived := make([]uint64, NumClients)
@@ -107,7 +137,7 @@ func main() {
 				        	// passthrough packet
 				        	writePacketData[0] = 0
 			        		binary.LittleEndian.PutUint64(writePacketData[1:9], writeSequence)
-							if _, err := conn.WriteToUDP(writePacketData, serverIP); err == nil {
+							if _, err := conn.WriteToUDP(writePacketData, serverAddress); err == nil {
 								if writeSequence > 100 {
 									oldSequence := writeSequence - 100
 									index := oldSequence % PacketBufferSize
