@@ -2,13 +2,13 @@ DONE
 
 	Verify that we can get next sessions session going through the proxy locally.
 
-TODO
-
 	Clean up logs after all the changes made.
+
+TODO
 
 	--------------
 
-	Extend client.go to read in environment variables for configuration.
+	Extend clients.go to read in environment variables for configuration.
 
 	--------------
 
@@ -41,19 +41,6 @@ TODO
 
 	--------------
 
-
-	Right now it seems the blocker here is just getting a relay setup in google cloud.
-
-	--------------
-
-	Might be smarter to switch over to production, which should have google cloud relays setup.
-
-	--------------
-
-	Verify that network next acceleration works through the proxy in prod w. google cloud (with advanced packet filter).
-
-	--------------
-
 	Load test that we can hit 2000 clients with the proxy actually upgrading each connected client.
 
 	This will require some load test client MIG where we can scale out n clients per-machine, and scale up.
@@ -63,5 +50,9 @@ TODO
 	If we can't hit the 2000 clients with next active, we'll need to split up into multiple network next threads.
 
 	This requires prefixing the network next packets with the session id, which is an extensive change. Try to avoid if possible.
+
+	--------------
+
+	Load test in bare metal on GCore
 
 	--------------
