@@ -34,7 +34,6 @@ static int packetBufferSize;
 static next_address_t bindAddress;
 static next_address_t serverAddress;
 
-// todo: convert these to environment variables
 const char * customer_public_key = "leN7D7+9vr24uT4f1Ba8PEEvIQA/UkGZLlT+sdeLRHKsVqaZq723Zw==";
 
 int read_env_int( const char * env, int default_value )
@@ -184,7 +183,7 @@ int main()
 	        sequence++;
 	        sent++;
 
-	        const int lookback = packetsPerSecond;
+	        const int lookback = packetsPerSecond * 2;
 
 	        if ( sequence >= uint64_t(lookback) )
 	        {
@@ -200,7 +199,13 @@ int main()
 
 	        if ( current_time - last_print_time > 5.0 )
 	        {
-	        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 "\n", sent, received, lost );
+			    const next_client_stats_t * stats = next_client_stats( client );
+
+			    const float latency = stats->next ? stats->next_rtt : stats->direct_min_rtt;
+			    const float jitter = ( stats->jitter_client_to_server + stats->jitter_server_to_client ) / 2;
+
+	        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", latency %.2fms, jitter %.2fms\n", 
+	        		sent, received, lost, latency, jitter );
 
 	        	last_print_time = current_time;
 	        }

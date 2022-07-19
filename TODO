@@ -10,13 +10,11 @@ DONE
 
 TODO
 
+	Extend client.cpp to print out latency, jitter and packet loss from network next client stats.
+
 	--------------
 
 	Extend proxy.cpp to read in environment variables for configuration.
-
-	--------------
-
-	Extend client.cpp to print out latency, jitter and packet loss from network next client stats.
 
 	--------------
 
