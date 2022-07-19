@@ -76,8 +76,12 @@ void interrupt_handler( int signal )
     (void) signal; quit = 1;
 }
 
+struct next_platform_thread_t;
+
 struct thread_data_t
 {
+	int thread_index;
+	next_platform_thread_t * thread;
 	next_client_t * client;
 	uint64_t sent;
 	uint64_t received;
@@ -110,6 +114,94 @@ void client_packet_received( next_client_t * client, void * context, const next_
 #if NEXT_PLATFORM != NEXT_PLATFORM_WINDOWS
 #define strncpy_s strncpy
 #endif // #if NEXT_PLATFORM != NEXT_PLATFORM_WINDOWS
+
+#if NEXT_PLATFORM == NEXT_PLATFORM_MAC
+#include "next_mac.h"
+#elif NEXT_PLATFORM == NEXT_PLATFORM_LINUX
+#include "next_linux.h"
+#endif 
+
+extern next_platform_thread_t * next_platform_thread_create( void * context, next_platform_thread_func_t * func, void * arg );
+
+extern void next_platform_thread_join( next_platform_thread_t * thread );
+
+extern void next_platform_thread_destroy( next_platform_thread_t * thread );
+
+static next_platform_thread_return_t NEXT_PLATFORM_THREAD_FUNC client_thread_function( void * context )
+{
+    thread_data_t * thread_data = (thread_data_t*) context;
+
+    next_assert( thread_data );
+
+    printf( "thread %d started\n", thread_data->thread_index );
+
+    char server_address[1024];
+    next_address_to_string( &serverAddress, server_address );
+    next_client_open_session( thread_data->client, server_address );
+
+    uint8_t packet_data[packetBytes];
+    memset( packet_data, 0, sizeof( packet_data ) );
+
+    uint64_t sequence = 0;
+
+    // double last_print_time = next_time();
+
+    next_sleep( 1.0 );
+
+    while ( !quit )
+    {
+        next_client_update( thread_data->client );
+
+        if ( next_client_ready( thread_data->client ) )
+        {
+	        uint8_t * p = packet_data;
+
+	        next_write_uint64( &p, sequence );
+
+	        next_client_send_packet( thread_data->client, packet_data, sizeof(packet_data) );
+	        
+	        sequence++;
+	        thread_data->sent++;
+
+	        const int lookback = packetsPerSecond * 2;
+
+	        if ( sequence >= uint64_t(lookback) )
+	        {
+	        	int index = ( sequence - lookback ) % packetBufferSize;
+	        	if ( thread_data->received_packets[index] != sequence - lookback )
+	        	{
+	        		// printf( "lost packet %" PRId64 "\n", sequence - 100 );
+	        		thread_data->lost++;
+	        	}
+	        }
+
+	        // todo: move this off to a stats thread
+	        /*
+	        double current_time = next_time();
+
+	        if ( current_time - last_print_time > 5.0 )
+	        {
+			    const next_client_stats_t * stats = next_client_stats( client );
+
+			    const float latency = stats->next ? stats->next_rtt : stats->direct_min_rtt;
+			    const float jitter = ( stats->jitter_client_to_server + stats->jitter_server_to_client ) / 2;
+			    const float packet_loss = stats->next ? stats->next_packet_loss : stats->direct_packet_loss;
+
+	        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", latency %.2fms, jitter %.2fms, packet loss %.1f%%\n", 
+	        		sent, received, lost, latency, jitter, packet_loss );
+
+	        	last_print_time = current_time;
+	        }
+	        */
+	    }
+
+        next_sleep( 1.0 / packetsPerSecond );
+    }
+
+    printf( "thread %d stopped\n", thread_data->thread_index );
+
+    NEXT_PLATFORM_THREAD_RETURN();
+}
 
 int main()
 {
@@ -164,7 +256,7 @@ int main()
         return 1;
     }
 
-    // --------------------------------------
+    // initialize clients
 
     thread_data_t ** thread_data = (thread_data_t**) malloc( sizeof(thread_data_t*) * numClients );
 
@@ -187,77 +279,36 @@ int main()
 	    // printf( "client port is %d\n", next_client_port( thread_data[i]->client ) );
 	}
 
-	/*
-    char server_address[1024];
-    next_address_to_string( &serverAddress, server_address );
-    next_client_open_session( client, server_address );
+	// create client threads
 
-    uint8_t packet_data[packetBytes];
-    memset( packet_data, 0, sizeof( packet_data ) );
+	for ( int i = 0; i < numClients; ++i )
+	{
+		thread_data[i]->thread_index = i;
+		thread_data[i]->thread = next_platform_thread_create( NULL, client_thread_function, thread_data[i] );
+		if ( !thread_data[i]->thread )
+		{
+			printf( "error: could not create client thread\n" );
+			exit(1);
+		}
+	}
 
-    uint64_t sequence = 0;
+    // join client threads
 
-    double last_print_time = next_time();
+	for ( int i = 0; i < numClients; ++i )
+	{
+		next_platform_thread_join( thread_data[i]->thread );
+		next_platform_thread_destroy( thread_data[i]->thread );
+	}
 
-    next_sleep( 1.0 );
+	// destroy clients
 
-    while ( !quit )
-    {
-        next_client_update( client );
-
-        if ( next_client_ready( client ) )
-        {
-	        uint8_t * p = packet_data;
-
-	        next_write_uint64( &p, sequence );
-
-	        next_client_send_packet( client, packet_data, sizeof(packet_data) );
-	        
-	        sequence++;
-	        sent++;
-
-	        const int lookback = packetsPerSecond * 2;
-
-	        if ( sequence >= uint64_t(lookback) )
-	        {
-	        	int index = ( sequence - lookback ) % packetBufferSize;
-	        	if ( received_packets[index] != sequence - lookback )
-	        	{
-	        		// printf( "lost packet %" PRId64 "\n", sequence - 100 );
-	        		lost++;
-	        	}
-	        }
-
-	        double current_time = next_time();
-
-	        if ( current_time - last_print_time > 5.0 )
-	        {
-			    const next_client_stats_t * stats = next_client_stats( client );
-
-			    const float latency = stats->next ? stats->next_rtt : stats->direct_min_rtt;
-			    const float jitter = ( stats->jitter_client_to_server + stats->jitter_server_to_client ) / 2;
-			    const float packet_loss = stats->next ? stats->next_packet_loss : stats->direct_packet_loss;
-
-	        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", latency %.2fms, jitter %.2fms, packet loss %.1f%%\n", 
-	        		sent, received, lost, latency, jitter, packet_loss );
-
-	        	last_print_time = current_time;
-	        }
-	    }
-
-        next_sleep( 1.0 / packetsPerSecond );
-    }
-    */
-
-	// ----------------------------------------------------
-    
     for ( int i = 0; i < numClients; ++i )
     {
     	// printf( "destroying client %d\n", i );
 	    next_client_destroy( thread_data[i]->client );
 	}
 
-    next_term();
+    // destroy thread data
 
     for ( int i = 0; i < numClients; ++i )
     {
@@ -267,5 +318,9 @@ int main()
     
     free( thread_data );
     
+	// shut down network next
+
+    next_term();
+
     return 0;
 }
