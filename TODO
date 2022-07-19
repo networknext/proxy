@@ -42,7 +42,7 @@ TODO
 
 	--------------
 
-	If we can run 2000 clients with 200 accelerated, we are done. The proxy compenent is completed.
+	If we can run 2000 clients with 200 accelerated, we are done. The proxy compenent is verified load tested.
 
 	--------------
 
@@ -52,67 +52,10 @@ TODO
 
 	--------------
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	--------------
-
 	Add a func test for sdk5 so we don't get 100% PL reported when the client isn't upgraded.
 
 	--------------
 
 	Apply the same fix to sdk4. Add a func test there too.
-
-	--------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-	--------------
-
-	Load test that we can hit 2000 clients with the proxy actually upgrading each connected client.
-
-	This will require some load test client MIG where we can scale out n clients per-machine, and scale up.
-
-	--------------
-
-	If we can't hit the 2000 clients with next active, we'll need to split up into multiple network next threads.
-
-	This requires prefixing the network next packets with the session id, which is an extensive change. Try to avoid if possible.
-
-	--------------
-
-	Load test in bare metal on GCore
 
 	--------------

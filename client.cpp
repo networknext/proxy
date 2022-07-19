@@ -28,6 +28,7 @@
 #include <inttypes.h>
 #include <assert.h>
 
+static int numClients;
 static int packetBytes;
 static int packetsPerSecond;
 static int packetBufferSize;
@@ -75,15 +76,25 @@ void interrupt_handler( int signal )
     (void) signal; quit = 1;
 }
 
-static uint64_t sent, received, lost;
-static uint64_t * received_packets;
+struct thread_data_t
+{
+	next_client_t * client;
+	uint64_t sent;
+	uint64_t received;
+	uint64_t lost;
+	uint64_t * received_packets;
+};
 
 void client_packet_received( next_client_t * client, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
 {
-    (void) client; (void) context; (void) packet_data; (void) packet_bytes; (void) from;
+    (void) client; (void) from;
 
 	if ( packet_bytes < 8 )
 		return;
+
+    next_assert( context );
+
+    thread_data_t * thread_data = (thread_data_t*) context;
 
 	const uint8_t * p = packet_data;
 
@@ -91,9 +102,9 @@ void client_packet_received( next_client_t * client, void * context, const next_
 
     // printf( "client received %d byte packet %" PRId64 "\n", packet_bytes, sequence );
 
-	received_packets[sequence%packetBufferSize] = sequence;
+	thread_data->received_packets[sequence%packetBufferSize] = sequence;
 
-	received++;
+	thread_data->received++;
 }
 
 #if NEXT_PLATFORM != NEXT_PLATFORM_WINDOWS
@@ -102,14 +113,24 @@ void client_packet_received( next_client_t * client, void * context, const next_
 
 int main()
 {
+	numClients = read_env_int( "NUM_CLIENTS", 1 );
 	packetBytes = read_env_int( "PACKET_BYTES", 100 );
 	packetsPerSecond = read_env_int( "PACKETS_PER_SECOND", 1 );
 	packetBufferSize = packetsPerSecond * 10;
 	bindAddress = read_env_address( "BIND_ADDRESS", "0.0.0.0:0" );
 	serverAddress = read_env_address( "SERVER_ADDRESS", "127.0.0.1:65000" );
 
-	printf( "client\n" );
+	if ( numClients > 1 )
+	{
+		printf( "%d clients\n", numClients );
+	}
+	else
+	{
+		printf( "1 client\n" );
+	}
+
 	printf( "%d byte packets\n", packetBytes );
+
 	if ( packetsPerSecond == 1 ) 
 	{
 		printf( "1 packet per-second\n" );
@@ -118,19 +139,18 @@ int main()
 	{
 		printf( "%d packets per-second\n", packetsPerSecond );
 	}
+
 	char buffer[1024];
 	printf( "bind address is %s\n", next_address_to_string( &bindAddress, buffer ) );
 	printf( "server address is %s\n", next_address_to_string( &serverAddress, buffer ) );
 
+	assert( numClients > 0 );
 	assert( packetBytes > 0 );
 	assert( packetsPerSecond > 0 );
 	assert( packetBufferSize > 0 );
 
     signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
-    received_packets = (uint64_t*) malloc( 8 * packetBufferSize );
-    memset( received_packets, 0xFF, 8 * packetBufferSize );
-    
     next_quiet( true );
 
     next_config_t config;
@@ -144,17 +164,30 @@ int main()
         return 1;
     }
 
-    char bind_address[1024];
-    next_address_to_string( &bindAddress, bind_address );
-    next_client_t * client = next_client_create( NULL, bind_address, client_packet_received );
-    if ( client == NULL )
+    // --------------------------------------
+
+    thread_data_t ** thread_data = (thread_data_t**) malloc( sizeof(thread_data_t*) * numClients );
+
+    for ( int i = 0; i < numClients; ++i )
     {
-        printf( "error: failed to create client\n" );
-        return 1;
-    }
+    	// printf( "creating client %d\n", i );
+    	thread_data[i] = (thread_data_t*) malloc( 1 * 1024 * 1024 );
+        thread_data[i]->received_packets = (uint64_t*) malloc( 8 * packetBufferSize );
+    	memset( thread_data[i]->received_packets, 0xFF, 8 * packetBufferSize );    
 
-    printf( "client port is %d\n", next_client_port( client ) );
+	    char bind_address[1024];
+	    next_address_to_string( &bindAddress, bind_address );
+	    thread_data[i]->client = next_client_create( NULL, bind_address, client_packet_received );
+	    if ( thread_data[i]->client == NULL )
+	    {
+	        printf( "error: failed to create client\n" );
+	        exit(1);
+	    }
 
+	    // printf( "client port is %d\n", next_client_port( thread_data[i]->client ) );
+	}
+
+	/*
     char server_address[1024];
     next_address_to_string( &serverAddress, server_address );
     next_client_open_session( client, server_address );
@@ -214,12 +247,25 @@ int main()
 
         next_sleep( 1.0 / packetsPerSecond );
     }
+    */
 
-    next_client_destroy( client );
+	// ----------------------------------------------------
     
+    for ( int i = 0; i < numClients; ++i )
+    {
+    	// printf( "destroying client %d\n", i );
+	    next_client_destroy( thread_data[i]->client );
+	}
+
     next_term();
 
-    free( received_packets );
+    for ( int i = 0; i < numClients; ++i )
+    {
+    	free( thread_data[i]->received_packets );
+    	free( thread_data[i] );
+    }
+    
+    free( thread_data );
     
     return 0;
 }
