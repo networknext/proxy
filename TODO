@@ -6,9 +6,9 @@ DONE
 
 	Extend clients.go to read in environment variables for configuration.
 
-TODO
-
 	Extend client.cpp to read in environment variables for configuration.
+
+TODO
 
 	--------------
 

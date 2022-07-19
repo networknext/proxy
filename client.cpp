@@ -31,10 +31,10 @@
 static int packetBytes;
 static int packetsPerSecond;
 static int packetBufferSize;
+static next_address_t bindAddress;
+static next_address_t serverAddress;
 
 // todo: convert these to environment variables
-const char * bind_address = "0.0.0.0:0";
-const char * server_address = "127.0.0.1:65000"; // "10.128.0.9:40000";	// google cloud
 const char * customer_public_key = "leN7D7+9vr24uT4f1Ba8PEEvIQA/UkGZLlT+sdeLRHKsVqaZq723Zw==";
 
 int read_env_int( const char * env, int default_value )
@@ -51,17 +51,18 @@ int read_env_int( const char * env, int default_value )
 	}
 }
 
-void read_env_address( const char * env, next_address_t * address, const char * default_value )
+next_address_t read_env_address( const char * env, const char * default_value )
 {
 	assert( env );
-	assert( address );
 	const char * address_string = default_value;
 	const char * env_string = getenv( env );
 	if ( env_string )
 	{
 		address_string = env_string;
 	}
-	next_address_parse( address, address_string );
+	next_address_t address;
+	next_address_parse( &address, address_string );
+	return address;
 }
 
 static volatile int quit = 0;
@@ -105,6 +106,8 @@ int main()
 	packetBytes = read_env_int( "PACKET_BYTES", 100 );
 	packetsPerSecond = read_env_int( "PACKETS_PER_SECOND", 1 );
 	packetBufferSize = packetsPerSecond * 10;
+	bindAddress = read_env_address( "BIND_ADDRESS", "0.0.0.0:0" );
+	serverAddress = read_env_address( "SERVER_ADDRESS", "127.0.0.1:65000" );
 
 	printf( "client\n" );
 	printf( "%d byte packets\n", packetBytes );
@@ -116,6 +119,9 @@ int main()
 	{
 		printf( "%d packets per-second\n", packetsPerSecond );
 	}
+	char buffer[1024];
+	printf( "bind address is %s\n", next_address_to_string( &bindAddress, buffer ) );
+	printf( "server address is %s\n", next_address_to_string( &serverAddress, buffer ) );
 
 	assert( packetBytes > 0 );
 	assert( packetsPerSecond > 0 );
@@ -139,6 +145,8 @@ int main()
         return 1;
     }
 
+    char bind_address[1024];
+    next_address_to_string( &bindAddress, bind_address );
     next_client_t * client = next_client_create( NULL, bind_address, client_packet_received );
     if ( client == NULL )
     {
@@ -148,6 +156,8 @@ int main()
 
     printf( "client port is %d\n", next_client_port( client ) );
 
+    char server_address[1024];
+    next_address_to_string( &serverAddress, server_address );
     next_client_open_session( client, server_address );
 
     uint8_t packet_data[packetBytes];
@@ -196,8 +206,7 @@ int main()
 	        }
 	    }
 
-	    // todo: packets per-second env
-        next_sleep( 1.0 );
+        next_sleep( 1.0 / packetsPerSecond );
     }
 
     next_client_destroy( client );
