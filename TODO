@@ -8,9 +8,13 @@ DONE
 
 	Extend client.cpp to read in environment variables for configuration.
 
+	Extend client.cpp to print out latency, jitter from network next client stats.
+
 TODO
 
-	Extend client.cpp to print out latency, jitter and packet loss from network next client stats.
+	Why is client.cpp printing out 100% for direct packet loss?
+
+	It should be printing out 0%. No packet loss is occurring -- are direct ping / pong packets being handled correctly by the proxy?
 
 	--------------
 
