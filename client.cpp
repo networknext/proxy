@@ -26,10 +26,42 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <assert.h>
 
+static int packetBytes;
+static int packetsPerSecond;
+
+// todo: convert these to environment variables
 const char * bind_address = "0.0.0.0:0";
 const char * server_address = "127.0.0.1:65000"; // "10.128.0.9:40000";	// google cloud
 const char * customer_public_key = "leN7D7+9vr24uT4f1Ba8PEEvIQA/UkGZLlT+sdeLRHKsVqaZq723Zw==";
+
+int read_env_int( const char * env, int default_value )
+{
+	assert( env );
+	const char * env_string = getenv( env );
+	if ( env_string )
+	{
+		return atoi( env_string );
+	}
+	else
+	{
+		return default_value;
+	}
+}
+
+void read_env_address( const char * env, next_address_t * address, const char * default_value )
+{
+	assert( env );
+	assert( address );
+	const char * address_string = default_value;
+	const char * env_string = getenv( env );
+	if ( env_string )
+	{
+		address_string = env_string;
+	}
+	next_address_parse( address, address_string );
+}
 
 static volatile int quit = 0;
 
@@ -43,7 +75,7 @@ void interrupt_handler( int signal )
 }
 
 static uint64_t sent, received, lost;
-static uint64_t received_packets[1024];		// todo: don't hardcode to 1024
+static uint64_t received_packets[1024];
 
 void client_packet_received( next_client_t * client, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
 {
@@ -58,6 +90,7 @@ void client_packet_received( next_client_t * client, void * context, const next_
 
     // printf( "client received %d byte packet %" PRId64 "\n", packet_bytes, sequence );
 
+	// todo: don't hardcode to 1024
 	received_packets[sequence%1024] = sequence;
 
 	received++;
@@ -69,6 +102,9 @@ void client_packet_received( next_client_t * client, void * context, const next_
 
 int main()
 {
+	packetBytes = read_env_int( "PACKET_BYTES", 100 );
+	packetsPerSecond = read_env_int( "PACKETS_PER_SECOND", 1 );
+
     signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
     memset( received_packets, 0xFF, sizeof(received_packets) );
@@ -97,8 +133,7 @@ int main()
 
     next_client_open_session( client, server_address );
 
-    // todo: don't hardcode. PACKET_BYTES env
-    uint8_t packet_data[100];
+    uint8_t packet_data[packetBytes];
     memset( packet_data, 0, sizeof( packet_data ) );
 
     uint64_t sequence = 0;
