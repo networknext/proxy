@@ -36,20 +36,6 @@ const char * next_datacenter = "local";
 const char * next_backend_hostname = "127.0.0.1:40000";
 const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c9Dhwr4ZaTkEWyX2Li5Ph/UFrw8QS8hAD9SQZkuVP6x14tEcqxWppmrvbdn";
 
-// todo: doubling up on port numbers below is super dumb. drive this all from env vars
-
-#if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
-const char * proxy_address = "10.128.0.7:40000";		// google cloud
-const char * server_address = "10.128.0.3:40000";		// google cloud
-const int proxy_port = 40000;
-const int server_port = 40000;
-#else
-const char * proxy_address = "127.0.0.1:65000";			// local testing
-const char * server_address = "127.0.0.1:65001";		// local testing
-const int proxy_port = 65000;
-const int server_port = 65001;
-#endif
-
 // ---------------------------------------------------------------------
 
 #define NEXT_PASSTHROUGH_PACKET                                         0
@@ -177,16 +163,16 @@ bool proxy_init()
 
 	memset( &config.proxy_bind_address, 0, sizeof(proxy_address_t) );
 	config.proxy_bind_address.type = PROXY_ADDRESS_IPV4;
-	config.proxy_bind_address.port = proxy_port;
+	config.proxy_bind_address.port = 65000;
 
 	memset( &config.server_bind_address, 0, sizeof(proxy_address_t) );
 	config.server_bind_address.type = PROXY_ADDRESS_IPV4;
-	config.server_bind_address.port = server_port;
+	config.server_bind_address.port = 65001;
 
 	proxy_address_parse( &config.next_bind_address, next_bind_address );
 
-	proxy_address_parse( &config.proxy_address, proxy_address );
-	proxy_address_parse( &config.server_address, server_address );
+	proxy_address_parse( &config.proxy_address, "127.0.0.1:65000" );
+	proxy_address_parse( &config.server_address, "127.0.0.1:65001" );
 	proxy_address_parse( &config.next_address, next_public_address );
 
 #if PROXY_PLATFORM == PROXY_PLATFORM_LINUX
@@ -1906,8 +1892,7 @@ int main( int argc, char * argv[] )
     {
     	printf( "creating network next server on port %d\n", config.next_address.port );
 
-    	// todo
-		// next_quiet( true );
+		next_quiet( true );
 
 		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 

@@ -12,6 +12,6 @@ sudo cp server.service /etc/systemd/system/server.service
 
 sudo systemctl daemon-reload
 
-sudo systemctl start server
-
 sudo systemctl enable server
+
+sudo systemctl start server
