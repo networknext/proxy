@@ -30,6 +30,7 @@
 
 static int packetBytes;
 static int packetsPerSecond;
+static int packetBufferSize;
 
 // todo: convert these to environment variables
 const char * bind_address = "0.0.0.0:0";
@@ -75,7 +76,7 @@ void interrupt_handler( int signal )
 }
 
 static uint64_t sent, received, lost;
-static uint64_t received_packets[1024];
+static uint64_t * received_packets;
 
 void client_packet_received( next_client_t * client, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
 {
@@ -90,8 +91,7 @@ void client_packet_received( next_client_t * client, void * context, const next_
 
     // printf( "client received %d byte packet %" PRId64 "\n", packet_bytes, sequence );
 
-	// todo: don't hardcode to 1024
-	received_packets[sequence%1024] = sequence;
+	received_packets[sequence%packetBufferSize] = sequence;
 
 	received++;
 }
@@ -104,12 +104,29 @@ int main()
 {
 	packetBytes = read_env_int( "PACKET_BYTES", 100 );
 	packetsPerSecond = read_env_int( "PACKETS_PER_SECOND", 1 );
+	packetBufferSize = packetsPerSecond * 10;
+
+	printf( "client\n" );
+	printf( "%d byte packets\n", packetBytes );
+	if ( packetsPerSecond == 1 ) 
+	{
+		printf( "1 packet per-second\n" );
+	}
+	else
+	{
+		printf( "%d packets per-second\n", packetsPerSecond );
+	}
+
+	assert( packetBytes > 0 );
+	assert( packetsPerSecond > 0 );
+	assert( packetBufferSize > 0 );
 
     signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
-    memset( received_packets, 0xFF, sizeof(received_packets) );
+    received_packets = (uint64_t*) malloc( 8 * packetBufferSize );
+    memset( received_packets, 0xFF, 8 * packetBufferSize );
     
-    // next_quiet( true );
+    next_quiet( true );
 
     next_config_t config;
     next_default_config( &config );
@@ -157,11 +174,12 @@ int main()
 	        sequence++;
 	        sent++;
 
-	        // todo: don't hardcode to 100
-	        if ( sequence >= 100 )
+	        const int lookback = packetsPerSecond;
+
+	        if ( sequence >= uint64_t(lookback) )
 	        {
-	        	int index = ( sequence - 100 ) % 1024;
-	        	if ( received_packets[index] != sequence - 100 )
+	        	int index = ( sequence - lookback ) % packetBufferSize;
+	        	if ( received_packets[index] != sequence - lookback )
 	        	{
 	        		// printf( "lost packet %" PRId64 "\n", sequence - 100 );
 	        		lost++;
@@ -185,6 +203,8 @@ int main()
     next_client_destroy( client );
     
     next_term();
+
+    free( received_packets );
     
     return 0;
 }
