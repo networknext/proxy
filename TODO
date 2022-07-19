@@ -2,14 +2,55 @@ DONE
 
 	Extend proxy.cpp to read in environment variables for configuration.
 
+	Setup a proxy.env that will run in google cloud, and actually init with the dev5 backend.
+
 TODO
 
 	--------------
 
-	Setup a proxy.env that will run in google cloud, and actually init with the dev5 backend.
+	Extend client.cpp so it can create n clients
 
 	--------------
 
+	Create a new test account, eg. "proxy-test".
+
+	Setup this account to force network next, but only for 10% of sessions.
+
+	This will line up with the intended us of 1 in 10 sessions being accelerated going through the proxy.
+
+	--------------
+
+	Setup a dev relay in google cloud and enable it in the "proxy-test" account.
+
+	--------------
+
+	Run the proxy in google cloud against dev5 backend. 
+
+	Verify it inits properly.
+
+	--------------
+
+	Run 2000 clients, with only 10% accelerated.
+
+	Verify that we can get through the proxy to the server without additional latency, jitter or PL.
+
+	--------------
+
+	If additional latency PL occurs, due to next, verify that we can still do the 2000 clients without using next.
+
+	If this is the case, the bottleneck is the network next socket and thread, and we need to split network next server across n sockets (eg. prefix all packets with session id and modulo to n network next server threads).
+
+	--------------
+
+	If we can run 2000 clients with 200 accelerated, we are done. The proxy compenent is completed.
+
+	--------------
+
+	Load test in GCore, with 2000 clients direct, and 2000 clients next.
+
+	Can we handle it? It's likely that the GCore bare metal will be much more performant than the Google cloud VMs.
+
+	--------------
 
 
 
