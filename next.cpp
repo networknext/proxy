@@ -7437,6 +7437,9 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
 
     if ( packet_id == NEXT_DIRECT_PONG_PACKET )
     {
+    	// todo
+    	printf( "DIRECT_PONG_PACKET\n" );
+
         NextDirectPongPacket packet;
 
         uint64_t packet_sequence = 0;
@@ -7880,11 +7883,22 @@ void next_client_internal_update_stats( next_client_internal_t * client )
             client->client_stats.next_kbps_down = 0;
         }
 
-        client->client_stats.direct_min_rtt = direct_route_stats.min_rtt;
-        client->client_stats.direct_max_rtt = direct_route_stats.max_rtt;
-        client->client_stats.direct_prime_rtt = direct_route_stats.prime_rtt;
-        client->client_stats.direct_jitter = direct_route_stats.jitter;
-        client->client_stats.direct_packet_loss = direct_route_stats.packet_loss;
+        if ( client->upgraded )
+        {
+	        client->client_stats.direct_min_rtt = direct_route_stats.min_rtt;
+	        client->client_stats.direct_max_rtt = direct_route_stats.max_rtt;
+	        client->client_stats.direct_prime_rtt = direct_route_stats.prime_rtt;
+	        client->client_stats.direct_jitter = direct_route_stats.jitter;
+	        client->client_stats.direct_packet_loss = direct_route_stats.packet_loss;
+        }
+        else
+        {
+	        client->client_stats.direct_min_rtt = 0.0f;
+	        client->client_stats.direct_max_rtt = 0.0f;
+	        client->client_stats.direct_prime_rtt = 0.0f;
+	        client->client_stats.direct_jitter = 0.0f;
+	        client->client_stats.direct_packet_loss = 0.0f;
+        }
 
 #if NEXT_DEVELOPMENT
         if ( !fallback_to_direct && next_fake_fallback_to_direct )
@@ -13779,6 +13793,9 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_DIRECT_PING_PACKET )
     {
+    	// todo
+    	printf( "DIRECT_PING_PACKET\n" );
+
         next_assert( session );
 
         if ( session == NULL )
@@ -13799,7 +13816,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
         if ( next_server_internal_send_packet( server, from, NEXT_DIRECT_PONG_PACKET, &response ) != NEXT_OK )
         {
-            next_printf( NEXT_LOG_LEVEL_DEBUG, "server could not send upgrade confirm packet" );
+            next_printf( NEXT_LOG_LEVEL_DEBUG, "server could not direct pong packet" );
             return;
         }
 

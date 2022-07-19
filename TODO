@@ -10,11 +10,30 @@ DONE
 
 	Extend client.cpp to print out latency, jitter from network next client stats.
 
-TODO
-
 	Why is client.cpp printing out 100% for direct packet loss?
 
 	It should be printing out 0%. No packet loss is occurring -- are direct ping / pong packets being handled correctly by the proxy?
+
+	False alarm, it was just because the client didn't get upgraded because the proxy next server didn't init with the backend.
+
+	Fixed next.cpp so if a client isn't upgraded, client stats don't return 100% packet loss
+
+TODO
+
+	There is a reproducible bug now. Connect a client, stop the client. Start a new client. 
+
+	Proxy crashes out with:
+
+		8.843186: debug: server received session response from backend for session 37e02644829f50d7 (direct route)
+		proxy thread 0 forwarded packet to server for slot 1
+		proxy thread 0 forwarded 101 byte packet to client for slot 1 (127.0.0.1:50918)
+		8.944306: debug: server sent route update packet to session 37e02644829f50d7
+		8.944615: debug: server received route update ack from client for session 37e02644829f50d7
+		assert failed: ( thread_number < config.num_threads ), function next_route_update_callback, file proxy.cpp, line 1737
+
+	It's likely there is a bug in the mapping between client addresses and thread/slots...
+
+	How to debug this?
 
 	--------------
 

@@ -203,9 +203,10 @@ int main()
 
 			    const float latency = stats->next ? stats->next_rtt : stats->direct_min_rtt;
 			    const float jitter = ( stats->jitter_client_to_server + stats->jitter_server_to_client ) / 2;
+			    const float packet_loss = stats->next ? stats->next_packet_loss : stats->direct_packet_loss;
 
-	        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", latency %.2fms, jitter %.2fms\n", 
-	        		sent, received, lost, latency, jitter );
+	        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", latency %.2fms, jitter %.2fms, packet loss %.1f%%\n", 
+	        		sent, received, lost, latency, jitter, packet_loss );
 
 	        	last_print_time = current_time;
 	        }
