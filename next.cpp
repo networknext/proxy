@@ -484,8 +484,7 @@ void next_quiet( NEXT_BOOL flag )
     log_quiet = flag;
 }
 
-// todo
-static int log_level = NEXT_LOG_LEVEL_DEBUG; // INFO;
+static int log_level = NEXT_LOG_LEVEL_INFO;
 
 void next_log_level( int level )
 {
@@ -7437,9 +7436,6 @@ void next_client_internal_process_network_next_packet( next_client_internal_t * 
 
     if ( packet_id == NEXT_DIRECT_PONG_PACKET )
     {
-    	// todo
-    	printf( "DIRECT_PONG_PACKET\n" );
-
         NextDirectPongPacket packet;
 
         uint64_t packet_sequence = 0;
@@ -13793,9 +13789,6 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_DIRECT_PING_PACKET )
     {
-    	// todo
-    	printf( "DIRECT_PING_PACKET\n" );
-
         next_assert( session );
 
         if ( session == NULL )

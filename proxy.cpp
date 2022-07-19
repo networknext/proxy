@@ -1728,7 +1728,7 @@ void next_route_update_callback( void * data, const next_address_t * client_addr
 		return;
 
 	const int slot_number = index % config.num_slots_per_thread;
-	const int thread_number = index / config.num_threads;
+	const int thread_number = index / config.num_slots_per_thread;
 
 	next_assert( slot_number >= 0 );
 	next_assert( slot_number < config.num_slots_per_thread );

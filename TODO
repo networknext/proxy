@@ -18,8 +18,6 @@ DONE
 
 	Fixed next.cpp so if a client isn't upgraded, client stats don't return 100% packet loss
 
-TODO
-
 	There is a reproducible bug now. Connect a client, stop the client. Start a new client. 
 
 	Proxy crashes out with:
@@ -33,7 +31,9 @@ TODO
 
 	It's likely there is a bug in the mapping between client addresses and thread/slots...
 
-	How to debug this?
+	There was an error in extracting the thread id from the slot socket index. Fixed.
+
+TODO
 
 	--------------
 
