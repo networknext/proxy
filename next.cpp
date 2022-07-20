@@ -13673,6 +13673,9 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_CLIENT_TO_SERVER_PACKET )
     {
+    	// todo
+		printf( "NEXT_CLIENT_TO_SERVER_PACKET\n" );
+
     	const int packet_bytes = end - begin;
 
         if ( packet_bytes <= NEXT_HEADER_BYTES )

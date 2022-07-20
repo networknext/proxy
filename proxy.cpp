@@ -62,8 +62,8 @@ const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c
 #define NEXT_RELAY_PONG_PACKET                                         21
 #define NEXT_FORWARD_PACKET_TO_CLIENT                                 254
 
-// #define debug_printf printf
-#define debug_printf(...) ((void)0)
+#define debug_printf printf
+//#define debug_printf(...) ((void)0)
 
 static volatile int quit = 0;
 

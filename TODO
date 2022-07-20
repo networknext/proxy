@@ -20,13 +20,42 @@ DONE
 
 	What happened?
 
-TODO
-
-	--------------
-
 	Test proxy locally and debug why we're seeing strange issues.
 
-	Hopefully, this is just a config issue where I broke something converting across to env var config...
+	Works fine with passthrough and with direct packets.
+
+	With a next route, it looks like client -> server packets get to the relay, but the relay is not seeing any server -> client packets.
+
+	What's going on with the broken server -> client packets?
+
+	The first thing to test is whether the server is actually getting the client -> server (proxy) -> real server packets or not.
+
+	It could be that the next server is not getting the server -> client packets, so it's not responding at all.
+
+	It could be that the proxy next server is not forwarding server to client packets through the relay properly.
+
+	But most likely, I think the proxy next server is just not getting the packets from the relay....
+
+	Add logs to check if the proxy next server is getting next client to server packets or not.
+
+	The next proxy server is getting the client to server packet.
+
+	There is definitely some weird thing where NEAR PINGS go to the relay very fast for 10 seconds, when it first goes onto next. Why is this?
+
+	Looks almost like high frequency pings code is broken.
+
+	Fixed. The ref backends were oscillating the high frequency ping on/off.
+
+	Add logs to see if the real server is getting packets from the proxy.
+
+	The server is not getting packets from the proxy.
+
+TODO
+
+	This means that the error is the proxy is not processing CLIENT_TO_SERVER packets properly, and forwarding them to the server.
+
+	Add logs to debug what's going on...
+	
 
 	--------------
 
