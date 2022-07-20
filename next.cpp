@@ -484,7 +484,7 @@ void next_quiet( NEXT_BOOL flag )
     log_quiet = flag;
 }
 
-static int log_level = NEXT_LOG_LEVEL_DEBUG sINFO;
+static int log_level = NEXT_LOG_LEVEL_DEBUG; // todo INFO;
 
 void next_log_level( int level )
 {
