@@ -118,7 +118,7 @@ void client_packet_received( next_client_t * client, void * context, const next_
 
 	uint64_t sequence = next_read_uint64( &p );
 
-    printf( "client received %d byte packet %" PRId64 "\n", packet_bytes, sequence );
+    // printf( "client received %d byte packet %" PRId64 "\n", packet_bytes, sequence );
 
 	thread_data->received_packets[sequence%packetBufferSize] = sequence;
 
@@ -179,7 +179,7 @@ static next_platform_thread_return_t NEXT_PLATFORM_THREAD_FUNC client_thread_fun
 	        	int index = ( sequence - lookback ) % packetBufferSize;
 	        	if ( thread_data->received_packets[index] != sequence - lookback )
 	        	{
-	        		printf( "lost packet %" PRId64 "\n", sequence - lookback );
+	        		// printf( "lost packet %" PRId64 "\n", sequence - lookback );
 	        		thread_data->lost++;
 	        	}
 	        }
@@ -248,7 +248,7 @@ int main()
 
     signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
-    // next_quiet( true );
+    next_quiet( true );
 
     next_config_t config;
     next_default_config( &config );

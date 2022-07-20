@@ -484,7 +484,7 @@ void next_quiet( NEXT_BOOL flag )
     log_quiet = flag;
 }
 
-static int log_level = NEXT_LOG_LEVEL_DEBUG; // todo INFO;
+static int log_level = NEXT_LOG_LEVEL_INFO;
 
 void next_log_level( int level )
 {
@@ -13673,9 +13673,6 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
 
     if ( packet_id == NEXT_CLIENT_TO_SERVER_PACKET )
     {
-    	// todo
-		printf( "NEXT_CLIENT_TO_SERVER_PACKET\n" );
-
     	const int packet_bytes = end - begin;
 
         if ( packet_bytes <= NEXT_HEADER_BYTES )
@@ -13701,7 +13698,7 @@ void next_server_internal_process_network_next_packet( next_server_internal_t * 
     	if ( server->callbacks.payload_receive_callback )
     	{
     		void * callback_data = server->callbacks.payload_receive_callback_data;
-    		if ( server->callbacks.payload_receive_callback( callback_data, from, payload_data, payload_bytes ) )
+    		if ( server->callbacks.payload_receive_callback( callback_data, &entry->address, payload_data, payload_bytes ) )
 	    		return;
     	}
 

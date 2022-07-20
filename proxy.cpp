@@ -62,8 +62,8 @@ const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c
 #define NEXT_RELAY_PONG_PACKET                                         21
 #define NEXT_FORWARD_PACKET_TO_CLIENT                                 254
 
-#define debug_printf printf
-//#define debug_printf(...) ((void)0)
+//#define debug_printf printf
+#define debug_printf(...) ((void)0)
 
 static volatile int quit = 0;
 
@@ -144,8 +144,8 @@ bool proxy_init()
 	config.num_threads = 16;
 	config.num_slots_per_thread = 1000;
 #else
-	config.num_threads = 1;
-	config.num_slots_per_thread = 10;
+	config.num_threads = 16;
+	config.num_slots_per_thread = 100;
 #endif
 
 	config.max_packet_size = 1500;
@@ -1134,9 +1134,6 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 			{
 				// forward packet to client through next server
 
-				// todo
-				// printf( "NEXT_FORWARD_PACKET_TO_CLIENT\n" );
-
 	            buffer[0] = NEXT_FORWARD_PACKET_TO_CLIENT;
 	            buffer[1] = client_address.data.ipv4[0];
 	            buffer[2] = client_address.data.ipv4[1];
@@ -1480,7 +1477,7 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC server_thread_f
 		if ( packet_bytes == 0 )
 			continue;
 
-		debug_printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
+		// debug_printf( "server thread %d reflected %d byte packet back to %s\n", thread_data->thread_number, packet_bytes, proxy_address_to_string( &from, string_buffer ) );
 
 		proxy_platform_socket_send_packet( thread_data->socket, &from, buffer, packet_bytes );
 	}
@@ -1692,7 +1689,13 @@ int next_payload_receive_callback( void * data, const next_address_t * client_ad
 
 	int socket_index = session_table_get( thread_data->session_table, (proxy_address_t*) client_address );
 	if ( socket_index < 0 )
+	{
+		/*
+		char buffer[1024];
+		printf( "no socket index for session: %s -> %d\n", next_address_to_string( client_address, buffer ), socket_index );
+		*/
 		return 1;
+	}
 
 	proxy_platform_socket_t * socket = thread_data->slot_sockets[socket_index];
 
@@ -1822,7 +1825,7 @@ int main( int argc, char * argv[] )
 
 		    if ( !slot_sockets[i] )
 		    {
-		    	printf( "error: could not create slot socket\n" );
+		    	printf( "error: could not create slot socket %d\n", i );
 		    	exit(1);
 		    }
 		}
@@ -1893,7 +1896,7 @@ int main( int argc, char * argv[] )
     {
     	printf( "creating network next server on port %d\n", config.next_address.port );
 
-		// next_quiet( true );
+		next_quiet( true );
 
 		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 
