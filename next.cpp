@@ -484,7 +484,7 @@ void next_quiet( NEXT_BOOL flag )
     log_quiet = flag;
 }
 
-static int log_level = NEXT_LOG_LEVEL_INFO;
+static int log_level = NEXT_LOG_LEVEL_DEBUG sINFO;
 
 void next_log_level( int level )
 {
@@ -7879,7 +7879,7 @@ void next_client_internal_update_stats( next_client_internal_t * client )
             client->client_stats.next_kbps_down = 0;
         }
 
-        if ( client->upgraded )
+        if ( client->upgraded && !client->fallback_to_direct )
         {
 	        client->client_stats.direct_min_rtt = direct_route_stats.min_rtt;
 	        client->client_stats.direct_max_rtt = direct_route_stats.max_rtt;

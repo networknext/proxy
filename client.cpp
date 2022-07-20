@@ -28,6 +28,12 @@
 #include <inttypes.h>
 #include <assert.h>
 
+#if NEXT_PLATFORM == NEXT_PLATFORM_MAC
+#include "next_mac.h"
+#elif NEXT_PLATFORM == NEXT_PLATFORM_LINUX
+#include "next_linux.h"
+#endif 
+
 static int numClients;
 static int packetBytes;
 static int packetsPerSecond;
@@ -87,6 +93,14 @@ struct thread_data_t
 	uint64_t received;
 	uint64_t lost;
 	uint64_t * received_packets;
+	
+	next_platform_mutex_t stats_mutex;
+	uint64_t stats_packets_sent;
+	uint64_t stats_packets_received;
+	uint64_t stats_packets_lost;
+	float stats_latency;
+	float stats_jitter;
+	float stats_packet_loss;
 };
 
 void client_packet_received( next_client_t * client, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
@@ -115,17 +129,14 @@ void client_packet_received( next_client_t * client, void * context, const next_
 #define strncpy_s strncpy
 #endif // #if NEXT_PLATFORM != NEXT_PLATFORM_WINDOWS
 
-#if NEXT_PLATFORM == NEXT_PLATFORM_MAC
-#include "next_mac.h"
-#elif NEXT_PLATFORM == NEXT_PLATFORM_LINUX
-#include "next_linux.h"
-#endif 
-
 extern next_platform_thread_t * next_platform_thread_create( void * context, next_platform_thread_func_t * func, void * arg );
-
 extern void next_platform_thread_join( next_platform_thread_t * thread );
-
 extern void next_platform_thread_destroy( next_platform_thread_t * thread );
+
+extern int next_platform_mutex_create( next_platform_mutex_t * mutex );
+extern void next_platform_mutex_acquire( next_platform_mutex_t * mutex );
+extern void next_platform_mutex_release( next_platform_mutex_t * mutex );
+extern void next_platform_mutex_destroy( next_platform_mutex_t * mutex );
 
 static next_platform_thread_return_t NEXT_PLATFORM_THREAD_FUNC client_thread_function( void * context )
 {
@@ -143,8 +154,6 @@ static next_platform_thread_return_t NEXT_PLATFORM_THREAD_FUNC client_thread_fun
     memset( packet_data, 0, sizeof( packet_data ) );
 
     uint64_t sequence = 0;
-
-    // double last_print_time = next_time();
 
     next_sleep( 1.0 );
 
@@ -175,24 +184,20 @@ static next_platform_thread_return_t NEXT_PLATFORM_THREAD_FUNC client_thread_fun
 	        	}
 	        }
 
-	        // todo: move this off to a stats thread
-	        /*
-	        double current_time = next_time();
+		    const next_client_stats_t * stats = next_client_stats( thread_data->client );
 
-	        if ( current_time - last_print_time > 5.0 )
-	        {
-			    const next_client_stats_t * stats = next_client_stats( client );
+		    const float latency = stats->next ? stats->next_rtt : stats->direct_min_rtt;
+		    const float jitter = ( stats->jitter_client_to_server + stats->jitter_server_to_client ) / 2;
+		    const float packet_loss = stats->next ? stats->next_packet_loss : stats->direct_packet_loss;
 
-			    const float latency = stats->next ? stats->next_rtt : stats->direct_min_rtt;
-			    const float jitter = ( stats->jitter_client_to_server + stats->jitter_server_to_client ) / 2;
-			    const float packet_loss = stats->next ? stats->next_packet_loss : stats->direct_packet_loss;
-
-	        	printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", latency %.2fms, jitter %.2fms, packet loss %.1f%%\n", 
-	        		sent, received, lost, latency, jitter, packet_loss );
-
-	        	last_print_time = current_time;
-	        }
-	        */
+			next_platform_mutex_acquire( &thread_data->stats_mutex );
+			thread_data->stats_packets_sent = thread_data->sent;
+			thread_data->stats_packets_received = thread_data->received;
+			thread_data->stats_packets_lost = thread_data->lost;
+			thread_data->stats_latency = latency;
+			thread_data->stats_jitter = jitter;
+			thread_data->stats_packet_loss = packet_loss;
+			next_platform_mutex_release( &thread_data->stats_mutex );
 	    }
 
         next_sleep( 1.0 / packetsPerSecond );
@@ -243,7 +248,7 @@ int main()
 
     signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
-    next_quiet( true );
+    // next_quiet( true );
 
     next_config_t config;
     next_default_config( &config );
@@ -269,7 +274,7 @@ int main()
 
 	    char bind_address[1024];
 	    next_address_to_string( &bindAddress, bind_address );
-	    thread_data[i]->client = next_client_create( NULL, bind_address, client_packet_received );
+	    thread_data[i]->client = next_client_create( thread_data[i], bind_address, client_packet_received );
 	    if ( thread_data[i]->client == NULL )
 	    {
 	        printf( "error: failed to create client\n" );
@@ -284,6 +289,7 @@ int main()
 	for ( int i = 0; i < numClients; ++i )
 	{
 		thread_data[i]->thread_index = i;
+		next_platform_mutex_create( &thread_data[i]->stats_mutex );
 		thread_data[i]->thread = next_platform_thread_create( NULL, client_thread_function, thread_data[i] );
 		if ( !thread_data[i]->thread )
 		{
@@ -292,7 +298,54 @@ int main()
 		}
 	}
 
-    // join client threads
+	// print stats
+
+	double last_stats_time = next_time();
+
+	while ( !quit )
+	{
+		next_sleep( 0.1f );
+
+		double current_time = next_time();
+
+		if ( current_time - last_stats_time < 5.0 )
+			continue;
+
+		last_stats_time = current_time;
+
+		uint64_t total_sent = 0;
+		uint64_t total_received = 0;
+		uint64_t total_lost = 0;
+		float max_latency = 0.0f;
+		float max_jitter = 0.0f;
+		float max_packet_loss = 0.0f;
+
+		for ( int i = 0; i < numClients; ++i )
+		{
+			next_platform_mutex_acquire( &thread_data[i]->stats_mutex );
+			total_sent += thread_data[i]->stats_packets_sent;
+			total_received += thread_data[i]->stats_packets_received;
+			total_lost += thread_data[i]->stats_packets_lost;
+			if ( thread_data[i]->stats_latency > max_latency )
+			{
+				max_latency = thread_data[i]->stats_latency;
+			}
+			if ( thread_data[i]->stats_jitter > max_jitter )
+			{
+				max_jitter = thread_data[i]->stats_jitter;
+			}
+			if ( thread_data[i]->stats_packet_loss > max_packet_loss )
+			{
+				max_packet_loss = thread_data[i]->stats_packet_loss;
+			}
+			next_platform_mutex_release( &thread_data[i]->stats_mutex );
+		}
+
+		printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", max latency %.2fms, max jitter %.2fms, max packet loss %.1f%%\n", 
+			total_sent, total_received, total_lost, max_latency, max_jitter, max_packet_loss );
+	}
+
+    // join client threads and destroy them
 
 	for ( int i = 0; i < numClients; ++i )
 	{
@@ -306,6 +359,7 @@ int main()
     {
     	// printf( "destroying client %d\n", i );
 	    next_client_destroy( thread_data[i]->client );
+		next_platform_mutex_destroy( &thread_data[i]->stats_mutex );
 	}
 
     // destroy thread data

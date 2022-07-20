@@ -62,8 +62,8 @@ const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c
 #define NEXT_RELAY_PONG_PACKET                                         21
 #define NEXT_FORWARD_PACKET_TO_CLIENT                                 254
 
-#define debug_printf printf
-//#define debug_printf(...) ((void)0)
+// #define debug_printf printf
+#define debug_printf(...) ((void)0)
 
 static volatile int quit = 0;
 
@@ -1134,7 +1134,8 @@ static proxy_platform_thread_return_t PROXY_PLATFORM_THREAD_FUNC slot_thread_fun
 			{
 				// forward packet to client through next server
 
-				printf( "NEXT_FORWARD_PACKET_TO_CLIENT\n" );
+				// todo
+				// printf( "NEXT_FORWARD_PACKET_TO_CLIENT\n" );
 
 	            buffer[0] = NEXT_FORWARD_PACKET_TO_CLIENT;
 	            buffer[1] = client_address.data.ipv4[0];
@@ -1892,7 +1893,7 @@ int main( int argc, char * argv[] )
     {
     	printf( "creating network next server on port %d\n", config.next_address.port );
 
-		next_quiet( true );
+		// next_quiet( true );
 
 		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 
