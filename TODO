@@ -20,37 +20,53 @@ TODO
 
 	--------------
 
-	Setup this account to force network next, but only for 10% of sessions.
-
-	This will line up with the intended us of 1 in 10 sessions being accelerated going through the proxy.
-
-	--------------
-
-	Setup a dev relay in google cloud and enable it in the "proxy-test" account.
-
-	--------------
-
 	Run the proxy in google cloud against dev5 backend. 
 
 	Verify it inits properly.
 
 	--------------
 
-	Run 2000 clients, with only 10% accelerated.
-
-	Verify that we can get through the proxy to the server without additional latency, jitter or PL.
+	See how many next clients I can run vs. the proxy on a single VM (n1-standard-16)
 
 	--------------
 
-	If additional latency PL occurs, due to next, verify that we can still do the 2000 clients without using next.
-
-	If this is the case, the bottleneck is the network next socket and thread, and we need to split network next server across n sockets (eg. prefix all packets with session id and modulo to n network next server threads).
+	Extend to 100 packets per-second and see what happens.
 
 	--------------
 
-	If we can run 2000 clients with 200 accelerated, we are done. The proxy compenent is verified load tested.
+	Extend to 1200 byte packets and see what happens.
 
 	--------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	Load test in GCore, with 2000 clients direct, and 2000 clients next.
 
