@@ -109,7 +109,7 @@ func main() {
 
 			go func(ctx context.Context, thread int) {
 
-				fmt.Printf("started client %d\n", thread)
+				// fmt.Printf("started client %d\n", thread)
 
 				port := baseClientPort + thread
 				address := "0.0.0.0:" + strconv.Itoa(port)
