@@ -4,11 +4,13 @@ DONE
 
 	Verify it inits properly.
 
+	Get the client, proxy and server VMs up again with latest code.
+
 TODO
 
 	--------------
 
-	
+	Get the client.go connecting with a low client count and zero packet loss, to make sure everything is OK.
 
 	--------------
 

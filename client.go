@@ -75,6 +75,20 @@ func main() {
 	socketReadBuffer := GetEnvInt("SOCKET_READ_BUFFER", 1000000)
 	socketWriteBuffer := GetEnvInt("SOCKET_WRITE_BUFFER", 1000000)
 
+	fmt.Printf("client\n")
+	fmt.Printf("server address is %s\n", serverAddress.String())
+	if numClients > 1 {
+		fmt.Printf("%d clients\n", numClients)
+	} else {
+		fmt.Printf("1 client\n")
+	}
+	if packetsPerSecond > 1 {
+		fmt.Printf("%d packets per-second\n", packetsPerSecond)
+	} else {
+		fmt.Printf("1 packet per-second\n")
+	}
+	fmt.Printf("%d packet bytes\n", packetBytes)
+
 	// run everything in parallel in a goroutine from main thread
 
 	var wg sync.WaitGroup
