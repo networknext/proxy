@@ -34,7 +34,7 @@ const char * next_bind_address = "0.0.0.0:60000";
 const char * next_public_address = "127.0.0.1:60000";
 const char * next_datacenter = "local";
 const char * next_backend_hostname = "127.0.0.1:40000";
-const char * next_customer_private_key = "leN7D7+9vr3TEZexVmvbYzdH1hbpwBvioc6y1c9Dhwr4ZaTkEWyX2Li5Ph/UFrw8QS8hAD9SQZkuVP6x14tEcqxWppmrvbdn";
+const char * next_customer_private_key = "87imaWGyq+JSNpzHRsFS1mX4Y5xlHi8IduJDfJOfiTgPEoJYvpbIqHuncOnAnCy2Mcas9AESXd4JCawRhak3yeaLaUJ9YP1U";
 
 // ---------------------------------------------------------------------
 
@@ -1896,7 +1896,7 @@ int main( int argc, char * argv[] )
     {
     	printf( "creating network next server on port %d\n", config.next_address.port );
 
-		next_quiet( true );
+		// next_quiet( true );
 
 		next_thread_data = (next_thread_data_t*) calloc( 1, config.next_thread_data_bytes );
 
@@ -1953,6 +1953,8 @@ int main( int argc, char * argv[] )
 	    		break;
 	    	next_sleep( 0.1 );
 	    }
+
+	    printf( "next server is ready\n" );
 	}
 
     // create proxy | server threads

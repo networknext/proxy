@@ -1,10 +1,24 @@
 DONE
 
+	Create a new test account in dev, eg. "proxy-test".
+
+	Generate a keypair and assign it to the account.
+
+	Put the keypair in the proxy examples.
+
+		Welcome to Network Next!
+
+		This is your public key:
+
+		    87imaWGyq+J7p3DpwJwstjHGrPQBEl3eCQmsEYWpN8nmi2lCfWD9VA==
+
+		This is your private key:
+
+		    87imaWGyq+JSNpzHRsFS1mX4Y5xlHi8IduJDfJOfiTgPEoJYvpbIqHuncOnAnCy2Mcas9AESXd4JCawRhak3yeaLaUJ9YP1U
+
 TODO
 
 	--------------
-
-	Create a new test account, eg. "proxy-test".
 
 	Setup this account to force network next, but only for 10% of sessions.
 

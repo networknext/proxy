@@ -34,14 +34,14 @@
 #include "next_linux.h"
 #endif 
 
+const char * customer_public_key = "87imaWGyq+J7p3DpwJwstjHGrPQBEl3eCQmsEYWpN8nmi2lCfWD9VA==";
+
 static int numClients;
 static int packetBytes;
 static int packetsPerSecond;
 static int packetBufferSize;
 static next_address_t bindAddress;
 static next_address_t serverAddress;
-
-const char * customer_public_key = "leN7D7+9vr24uT4f1Ba8PEEvIQA/UkGZLlT+sdeLRHKsVqaZq723Zw==";
 
 int read_env_int( const char * env, int default_value )
 {
