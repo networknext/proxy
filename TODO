@@ -10,9 +10,9 @@ DONE
 
 	Scale up client.go to 2000 clients with 1200 byte packets @ 100 packets-per-second, with 0% PL.
 
-TODO
+	Fixed service files so that proxy starts up only once the network is online.
 
-	--------------
+TODO
 
 	Now get another VM setup for next client...
 
