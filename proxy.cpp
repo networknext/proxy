@@ -1599,7 +1599,7 @@ void next_packet_receive_callback( void * data, next_address_t * from, uint8_t *
 			char buffer[1024];
 			const char * address_string = next_address_to_string( from, buffer );
 			uint64_t session_id = next_server_upgrade_session( thread_data->next_server, from, address_string );
-			printf( "next thread upgraded client %s to session %" PRIx64 "\n", address_string, session_id );
+			printf( "next thread upgraded client %s to session %016" PRIx64 "\n", address_string, session_id );
 			fflush( stdout );
 		}
 	}
