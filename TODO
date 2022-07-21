@@ -20,12 +20,15 @@ DONE
 
 	Add some logic to show (in the proxy, or the client or whatever...) that a next route is being taken.
 
+	This way I can be confident that the load is correct, eg. actual next routes across a relay vs. direct.	
+
 TODO
 	
-	----------------
+	Looks like the clients are only going direct (yes, upgraded direct but not next...)
 
+	However, they are working next locally.
 
-	This way I can be confident that the load is correct, eg. actual next routes across a relay vs. direct.	
+	So it's going to come down to some configuration issue for the buyer, and/or the datacenter.
 
 	----------------
 

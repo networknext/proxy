@@ -250,7 +250,7 @@ int main()
 
     signal( SIGINT, interrupt_handler ); signal( SIGTERM, interrupt_handler );
 
-    next_quiet( true );
+    // next_quiet( true );
 
     next_config_t config;
     next_default_config( &config );
