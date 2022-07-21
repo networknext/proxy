@@ -101,6 +101,7 @@ struct thread_data_t
 	float stats_latency;
 	float stats_jitter;
 	float stats_packet_loss;
+	bool stats_next;
 };
 
 void client_packet_received( next_client_t * client, void * context, const next_address_t * from, const uint8_t * packet_data, int packet_bytes )
@@ -197,6 +198,7 @@ static next_platform_thread_return_t NEXT_PLATFORM_THREAD_FUNC client_thread_fun
 			thread_data->stats_latency = latency;
 			thread_data->stats_jitter = jitter;
 			thread_data->stats_packet_loss = packet_loss;
+			thread_data->stats_next = stats->next;
 			next_platform_mutex_release( &thread_data->stats_mutex );
 	    }
 
@@ -317,6 +319,7 @@ int main()
 		uint64_t total_sent = 0;
 		uint64_t total_received = 0;
 		uint64_t total_lost = 0;
+		uint64_t total_next = 0;
 		float max_latency = 0.0f;
 		float max_jitter = 0.0f;
 		float max_packet_loss = 0.0f;
@@ -339,11 +342,15 @@ int main()
 			{
 				max_packet_loss = thread_data[i]->stats_packet_loss;
 			}
+			if ( thread_data[i]->stats_next )
+			{
+				total_next++;
+			}
 			next_platform_mutex_release( &thread_data[i]->stats_mutex );
 		}
 
-		printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", max latency %.2fms, max jitter %.2fms, max packet loss %.1f%%\n", 
-			total_sent, total_received, total_lost, max_latency, max_jitter, max_packet_loss );
+		printf( "sent %" PRId64 ", received %" PRId64 ", lost %" PRId64 ", max latency %.2fms, max jitter %.2fms, max packet loss %.1f%%, next %" PRId64 "/%d\n", 
+			total_sent, total_received, total_lost, max_latency, max_jitter, max_packet_loss, total_next, numClients );
 	}
 
     // join client threads and destroy them

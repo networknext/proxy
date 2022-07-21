@@ -12,23 +12,22 @@ DONE
 
 	Fixed service files so that proxy starts up only once the network is online.
 
-TODO
-
 	Now get another VM setup for next client...
 
-	--------------
+	Can (just barely) get 2000 next clients working on a powerful VM.
 
-	See how many next clients I can run vs. the proxy on a single VM (n1-standard-16)
+	But I have no indication that they are accelerated or not.
 
-	--------------
+	Add some logic to show (in the proxy, or the client or whatever...) that a next route is being taken.
 
-	Extend to 100 packets per-second and see what happens.
+TODO
+	
+	----------------
 
-	--------------
 
-	Extend to 1200 byte packets and see what happens.
+	This way I can be confident that the load is correct, eg. actual next routes across a relay vs. direct.	
 
-	--------------
+	----------------
 
 
 
