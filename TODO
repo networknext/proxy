@@ -1,28 +1,14 @@
 DONE
 
-	Create a new test account in dev, eg. "proxy-test".
+	Run the proxy in google cloud against dev5 backend. 
 
-	Generate a keypair and assign it to the account.
-
-	Put the keypair in the proxy examples.
-
-		Welcome to Network Next!
-
-		This is your public key:
-
-		    87imaWGyq+J7p3DpwJwstjHGrPQBEl3eCQmsEYWpN8nmi2lCfWD9VA==
-
-		This is your private key:
-
-		    87imaWGyq+JSNpzHRsFS1mX4Y5xlHi8IduJDfJOfiTgPEoJYvpbIqHuncOnAnCy2Mcas9AESXd4JCawRhak3yeaLaUJ9YP1U
+	Verify it inits properly.
 
 TODO
 
 	--------------
 
-	Run the proxy in google cloud against dev5 backend. 
-
-	Verify it inits properly.
+	
 
 	--------------
 
