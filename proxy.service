@@ -9,4 +9,4 @@ RestartSec=3
 LimitNOFILE=10000000
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=network-online.target

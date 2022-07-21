@@ -6,11 +6,15 @@ DONE
 
 	Get the client, proxy and server VMs up again with latest code.
 
+	Get the client.go connecting with a low client count and zero packet loss, to make sure everything is OK.
+
+	Scale up client.go to 2000 clients with 1200 byte packets @ 100 packets-per-second, with 0% PL.
+
 TODO
 
 	--------------
 
-	Get the client.go connecting with a low client count and zero packet loss, to make sure everything is OK.
+	Now get another VM setup for next client...
 
 	--------------
 
