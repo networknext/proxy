@@ -1,43 +1,80 @@
 DONE
 
-	Run the proxy in google cloud against dev5 backend. 
-
-	Verify it inits properly.
-
-	Get the client, proxy and server VMs up again with latest code.
-
-	Get the client.go connecting with a low client count and zero packet loss, to make sure everything is OK.
-
-	Scale up client.go to 2000 clients with 1200 byte packets @ 100 packets-per-second, with 0% PL.
-
-	Fixed service files so that proxy starts up only once the network is online.
-
-	Now get another VM setup for next client...
-
-	Can (just barely) get 2000 next clients working on a powerful VM.
-
-	But I have no indication that they are accelerated or not.
-
-	Add some logic to show (in the proxy, or the client or whatever...) that a next route is being taken.
-
-	This way I can be confident that the load is correct, eg. actual next routes across a relay vs. direct.	
-
-	Looks like the clients are only going direct (yes, upgraded direct but not next...)
-
-	However, they are working next locally.
-
-	So it's going to come down to some configuration issue for the buyer, and/or the datacenter.
-
-	Turn on debug for the customer account and see what's up...	
-
 	No data is coming through. Looks like debug is not working in server backend5
-
-TODO
 
 	Debug and fix why debug isn't showing up for server backend 5 in dev.
 
+	Debug why the client sessions aren't going over next.
+
+	It was an old database.bin
+
+	Now the route request is timing out. This means that the communication from the relay -> server is broken.
+
+		11.469975: info: client next route (committed)
+		11.469984: info: client multipath enabled
+		sent 15, received 14, lost 0, max latency 0.39ms, max jitter 0.00ms, max packet loss 0.0%, next 0/1
+		16.573479: error: client route request timed out
+		16.573499: info: client fallback to direct
+
+	Need to work out why this is happening.
+
+TODO
+
+	The next step is to add the actual route IP addresses to the debug string.
+
+	For example:
+
+		10.10.1.5:40000 -> 20.6.10.9:40000 -> .... -> server extern IP address
+
+	This way we can check that the actual route being setup is correct.
+
+	If for example, the route is being sent to the internal address of the server, this would explain it.
+
+	-----------------------
+
+	If the route setup is correct, we need to probably run some debug on the relay itself in google.iowa.1.
+
+	The question is, is the relay able to communicate with the proxy next server?
+
+	eg. add a log to the next server when it gets a "route request" from a relay.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	----------------
 
+	Get 1000 next sessions working for one VM.
+
+	----------------
+
+	Scale up multiple VMs and demonstrate 2000 next sessions working.
+
+	----------------
 
 
 
