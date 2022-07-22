@@ -18,8 +18,6 @@ DONE
 
 	Need to work out why this is happening.
 
-TODO
-
 	The next step is to add the actual route IP addresses to the debug string.
 
 	For example:
@@ -30,13 +28,15 @@ TODO
 
 	If for example, the route is being sent to the internal address of the server, this would explain it.
 
-	-----------------------
+TODO
 
-	If the route setup is correct, we need to probably run some debug on the relay itself in google.iowa.1.
+	Now something strange is happening. The client is connecting to the proxy next server, but the next server is not getting responses to session updates from the server backend 5.
 
-	The question is, is the relay able to communicate with the proxy next server?
+	WTF?
 
-	eg. add a log to the next server when it gets a "route request" from a relay.
+	Drop the next-client, proxy and server instances to cheaper types, so I can just leave them running while I debug.
+
+	--------------------
 
 
 
